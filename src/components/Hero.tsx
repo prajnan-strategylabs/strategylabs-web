@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowRight, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 import { joinWaitlist } from "../lib/waitlist";
 
@@ -12,6 +12,18 @@ export function Hero() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
+  // Load waitlist status from localStorage on mount
+  useEffect(() => {
+    try {
+      const alreadyJoined = localStorage.getItem("joined_waitlist");
+      if (alreadyJoined === "true") {
+        setStatus({ kind: "success", alreadyMember: true });
+      }
+    } catch {
+      // ignore localStorage block
+    }
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email || status.kind === "loading") return;
@@ -20,6 +32,11 @@ export function Hero() {
     const result = await joinWaitlist(email, "hero");
     if (result.ok) {
       setStatus({ kind: "success", alreadyMember: result.alreadyMember });
+      try {
+        localStorage.setItem("joined_waitlist", "true");
+      } catch {
+        // ignore localStorage block
+      }
     } else {
       setStatus({ kind: "error", message: result.error });
     }
