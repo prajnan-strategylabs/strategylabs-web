@@ -1,0 +1,30 @@
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <!-- ascending chart line with V-dip (price retest) -->
+  <path
+    d="M 36 180
+       C 60 178, 78 168, 96 144
+       L 116 168
+       L 222 50"
+    stroke="#22d3aa"
+    stroke-width="9"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- starting circle (open) -->
+  <circle cx="36" cy="180" r="9" stroke="#22d3aa" stroke-width="6" />
+
+  <!-- peak circle (open) -->
+  <circle cx="222" cy="50" r="11" stroke="#22d3aa" stroke-width="6" />
+
+  <!-- spark rays at peak -->
+  <g stroke="#22d3aa" stroke-width="6" stroke-linecap="round">
+    <!-- upper rays -->
+    <line x1="222" y1="22" x2="222" y2="8" />
+    <line x1="200" y1="32" x2="190" y2="22" />
+    <line x1="244" y1="32" x2="254" y2="22" />
+    <!-- side rays -->
+    <line x1="192" y1="50" x2="178" y2="50" />
+    <line x1="252" y1="50" x2="266" y2="50" />
+  </g>
+</svg>

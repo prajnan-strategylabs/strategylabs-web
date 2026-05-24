@@ -1,0 +1,15 @@
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <rect width="32" height="32" rx="6" fill="#0a0e1a"/>
+  <!-- Simplified chart for tiny size: V-dip + spark peak -->
+  <path d="M 5 23 L 11 17 L 14 21 L 25 9"
+        stroke="#22d3aa" stroke-width="2.4"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="5" cy="23" r="1.8" stroke="#22d3aa" stroke-width="1.4" fill="none"/>
+  <circle cx="25" cy="9" r="2"  stroke="#22d3aa" stroke-width="1.4" fill="none"/>
+  <!-- mini spark rays -->
+  <g stroke="#22d3aa" stroke-width="1.4" stroke-linecap="round">
+    <line x1="25" y1="4"  x2="25" y2="2"/>
+    <line x1="29" y1="9"  x2="31" y2="9"/>
+    <line x1="21.5" y1="5.5" x2="20" y2="4"/>
+  </g>
+</svg>

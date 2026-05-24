@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply bg-bg text-ink;
+    color-scheme: dark;
+  }
+
+  body {
+    @apply min-h-screen antialiased font-sans;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(34, 211, 170, 0.15), transparent 60%),
+      radial-gradient(ellipse 60% 50% at 100% 100%, rgba(99, 102, 241, 0.08), transparent 60%),
+      #0a0e1a;
+  }
+
+  /* nicer scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: #0a0e1a; }
+  ::-webkit-scrollbar-thumb { background: #1e2740; border-radius: 5px; }
+  ::-webkit-scrollbar-thumb:hover { background: #2a3654; }
+
+  /* focus ring */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-bg;
+  }
+}
+
+@layer components {
+  .container-app {
+    @apply mx-auto w-full max-w-6xl px-6;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           rounded-lg bg-accent px-5 py-3 font-semibold
+           text-bg transition-all hover:scale-[1.02]
+           hover:shadow-lg hover:shadow-accent/30
+           active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2
+           rounded-lg border border-line bg-bg-elev px-5 py-3
+           font-medium text-ink transition-all
+           hover:border-accent/50 hover:text-accent
+           active:scale-[0.98];
+  }
+
+  .card {
+    @apply rounded-xl border border-line bg-bg-card p-6
+           shadow-[0_4px_30px_rgba(0,0,0,0.3)];
+  }
+
+  .stat-num {
+    @apply font-mono text-2xl font-semibold tabular-nums tracking-tight;
+  }
+}
