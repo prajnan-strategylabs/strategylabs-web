@@ -8,6 +8,7 @@
   html {
     @apply bg-bg text-ink;
     color-scheme: dark;
+    scroll-behavior: smooth;
   }
 
   body {
