@@ -1,22 +1,30 @@
-import { Header } from "./components/Header";
-import { Hero } from "./components/Hero";
-import { Proof } from "./components/Proof";
-import { HowItWorks } from "./components/HowItWorks";
-import { Pricing } from "./components/Pricing";
-import { Footer } from "./components/Footer";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import { AppLayout } from "./components/AppLayout";
+import { Landing } from "./pages/Landing";
+import { Login } from "./pages/Login";
+import { Dashboard } from "./pages/Dashboard";
+import { StrategyLab } from "./pages/StrategyLab";
+import { Signals } from "./pages/Signals";
 
 function App() {
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1">
-        <Hero />
-        <Proof />
-        <HowItWorks />
-        <Pricing />
-      </main>
-      <Footer />
-    </div>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Landing & Auth routes */}
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+
+          {/* Authenticated Application routes (AppLayout wrapped) */}
+          <Route element={<AppLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/lab" element={<StrategyLab />} />
+            <Route path="/signals" element={<Signals />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

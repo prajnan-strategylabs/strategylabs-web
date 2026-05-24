@@ -1,6 +1,17 @@
+import { useState, useEffect } from "react";
 import { LogoMark } from "./Logo";
+import { Link } from "react-router-dom";
+import { apiGetConfig } from "../lib/api";
 
 export function Header() {
+  const [isLaunched, setIsLaunched] = useState(false);
+
+  useEffect(() => {
+    apiGetConfig().then((cfg) => {
+      setIsLaunched(cfg.is_launched);
+    });
+  }, []);
+
   return (
     <header className="sticky top-0 z-50 border-b border-line/50 bg-bg/80 backdrop-blur-md">
       <div className="container-app flex h-16 items-center justify-between">
@@ -17,9 +28,15 @@ export function Header() {
           <a href="#pricing" className="text-sm text-ink-muted hover:text-ink transition-colors">Pricing</a>
         </nav>
 
-        <a href="#waitlist" className="btn-primary text-sm py-2 px-4">
-          Join waitlist
-        </a>
+        {isLaunched ? (
+          <Link to="/login" className="btn-primary text-sm py-2 px-4 shadow-md shadow-accent/25">
+            Launch App
+          </Link>
+        ) : (
+          <a href="#waitlist" className="btn-primary text-sm py-2 px-4 shadow-md shadow-accent/25">
+            Join Waitlist
+          </a>
+        )}
       </div>
     </header>
   );

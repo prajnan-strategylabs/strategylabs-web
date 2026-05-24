@@ -30,12 +30,22 @@ async function get<T>(path: string, token: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// ── Waitlist ──────────────────────────────────────────────────────────────────
+// ── Waitlist & Config ──────────────────────────────────────────────────────────
 
 export type WaitlistResponse = { ok: boolean; already_member: boolean };
 
 export async function apiJoinWaitlist(email: string, source = "hero"): Promise<WaitlistResponse> {
   return post<WaitlistResponse>("/api/v1/waitlist", { email, source });
+}
+
+export async function apiGetConfig(): Promise<{ is_launched: boolean }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/config`);
+    if (!res.ok) return { is_launched: false };
+    return await res.json() as { is_launched: boolean };
+  } catch {
+    return { is_launched: false };
+  }
 }
 
 // ── Strategies ────────────────────────────────────────────────────────────────

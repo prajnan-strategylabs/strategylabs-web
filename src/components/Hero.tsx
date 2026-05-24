@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { ArrowRight, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 import { joinWaitlist } from "../lib/waitlist";
+import { apiGetConfig } from "../lib/api";
 
 type Status =
   | { kind: "idle" }
@@ -11,8 +13,9 @@ type Status =
 export function Hero() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [isLaunched, setIsLaunched] = useState(false);
 
-  // Load waitlist status from localStorage on mount
+  // Load waitlist status & backend config on mount
   useEffect(() => {
     try {
       const alreadyJoined = localStorage.getItem("joined_waitlist");
@@ -22,6 +25,10 @@ export function Hero() {
     } catch {
       // ignore localStorage block
     }
+
+    apiGetConfig().then((cfg) => {
+      setIsLaunched(cfg.is_launched);
+    });
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -70,23 +77,36 @@ export function Hero() {
           Get live signals if it actually works.
         </p>
 
-        {/* Email capture */}
+        {/* Email capture / App Launch CTA */}
         <div id="waitlist" className="mx-auto mt-10 max-w-md animate-slide-up [animation-delay:200ms]">
-          {submitted ? (
-            <div className="card flex items-center gap-3 border-accent/30 bg-accent/5">
-              <CheckCircle2 className="h-6 w-6 flex-none text-accent" />
-              <div>
-                <div className="font-semibold">
-                  {status.kind === "success" && status.alreadyMember
-                    ? "You're already on the list."
-                    : "You're on the list."}
-                </div>
-                <div className="text-sm text-ink-muted">
-                  {status.kind === "success" && status.alreadyMember
-                    ? "We'll email you the moment beta access opens."
-                    : "Thanks — we'll email you when beta access opens."}
+          {isLaunched ? (
+            <Link
+              to="/login"
+              className="btn-primary w-full py-4 text-base font-bold shadow-lg shadow-accent/25 flex items-center justify-center gap-2"
+            >
+              Launch AI Strategy Lab Now
+              <ArrowRight className="h-5 w-5" />
+            </Link>
+          ) : submitted ? (
+            <div className="card flex flex-col gap-4 border-accent/30 bg-accent/5">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="h-6 w-6 flex-none text-accent mt-0.5" />
+                <div>
+                  <div className="font-semibold text-sm">
+                    {status.kind === "success" && status.alreadyMember
+                      ? "You're already on the list."
+                      : "You're on the list."}
+                  </div>
+                  <div className="text-xs text-ink-muted mt-1 leading-relaxed">
+                    {status.kind === "success" && status.alreadyMember
+                      ? "We'll email you the moment beta opens. You can also explore the sandbox dashboard now!"
+                      : "Thanks — we'll email you when beta opens. Explore the sandbox dashboard now!"}
+                  </div>
                 </div>
               </div>
+              <Link to="/login" className="btn-primary py-2.5 text-xs w-full shadow-md shadow-accent/20">
+                Launch Sandbox Dashboard
+              </Link>
             </div>
           ) : (
             <>
