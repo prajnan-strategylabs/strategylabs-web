@@ -15,6 +15,7 @@ interface AuthContextType {
   loading: boolean;
   isSandbox: boolean;
   signIn: (email: string) => Promise<{ error: Error | null }>;
+  verifyOtp: (email: string, token: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updateSandboxTier: (tier: UserTier) => void;
 }
@@ -47,6 +48,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    // Check if the URL hash contains a Supabase auth error
+    if (window.location.hash) {
+      const hashParams = new URLSearchParams(window.location.hash.slice(1));
+      const errorCode = hashParams.get("error_code");
+      const errorMsg = hashParams.get("error_description");
+      
+      if (errorCode || errorMsg) {
+        // Clear hash from history
+        window.history.replaceState(null, "", window.location.pathname);
+        // Redirect back to login with query strings
+        const redirectUrl = `/login?error=${encodeURIComponent(errorCode || "auth_failure")}&desc=${encodeURIComponent(errorMsg || "Authentication failed")}`;
+        window.location.href = redirectUrl;
+        return;
+      }
+    }
+
     if (!supabaseReady || !supabase) {
       // Sandbox fallback in local dev when Supabase keys are missing
       setIsSandbox(true);
@@ -64,28 +81,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const getSession = async () => {
       const { data: { session } } = await supabase!.auth.getSession();
       if (session?.user) {
-        const appUser = await fetchUserTier(session.user.id, session.user.email || "");
-        setUser(appUser);
+        // Optimistic set + background tier fetch (same pattern as the listener)
+        setUser({ id: session.user.id, email: session.user.email || "", tier: "free" });
+        setLoading(false);
+        void fetchUserTier(session.user.id, session.user.email || "").then((appUser) => {
+          setUser(appUser);
+        });
       } else {
         setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     getSession();
 
-    const { data: { subscription } } = supabase!.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase!.auth.onAuthStateChange((_event, session) => {
+      // CRITICAL: do NOT make this callback async or await anything heavy here.
+      // Supabase JS awaits its subscribers, so a slow callback (e.g. a stalled
+      // `profiles` query) deadlocks setSession / verifyOtp.
       if (session?.user) {
-        const appUser = await fetchUserTier(session.user.id, session.user.email || "");
-        setUser(appUser);
+        // Optimistically set the user from session data — fetchUserTier runs
+        // in the background to upgrade the tier from "free" once profiles loads.
+        setUser({ id: session.user.id, email: session.user.email || "", tier: "free" });
+        setLoading(false);
+        void fetchUserTier(session.user.id, session.user.email || "").then((appUser) => {
+          setUser(appUser);
+        });
       } else {
         setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
+
+    // Defensive cross-tab sync: when ANY tab writes the Supabase session to
+    // localStorage, re-pull the session in this tab. Supabase's internal
+    // BroadcastChannel sync sometimes misses, especially during hot reloads.
+    const onStorage = (e: StorageEvent) => {
+      // Supabase stores sessions under keys like "sb-<project-ref>-auth-token"
+      if (e.key && e.key.startsWith("sb-") && e.key.endsWith("-auth-token")) {
+        // eslint-disable-next-line no-console
+        console.log("[auth] storage event detected — refreshing session");
+        void getSession();
+      }
+    };
+    window.addEventListener("storage", onStorage);
 
     return () => {
       subscription.unsubscribe();
+      window.removeEventListener("storage", onStorage);
     };
   }, []);
 
@@ -104,8 +147,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim().toLowerCase(),
         options: {
+          // Email template appends "/login?token_hash=…&type=…" itself, so
+          // .RedirectTo must be ORIGIN ONLY (no /login suffix).
+          // First-time emails get the "Confirm signup" template (type=signup);
+          // subsequent emails get the "Magic link or OTP" template (type=magiclink).
+          // Both customized to use the same token_hash flow.
           emailRedirectTo: window.location.origin,
         },
+      });
+      return { error: error ? new Error(error.message) : null };
+    }
+
+    return { error: new Error("Auth system not ready.") };
+  };
+
+  const verifyOtp = async (email: string, token: string): Promise<{ error: Error | null }> => {
+    if (isSandbox) {
+      if (token.trim() === "123456" || token.trim() === "654321") {
+        setUser({
+          id: "sandbox-usr-99",
+          email: email.trim().toLowerCase(),
+          display_name: "Lab Sandbox User",
+          tier: "free",
+        });
+        return { error: null };
+      }
+      return { error: new Error("Invalid code. In Sandbox dev mode, use '123456' as code.") };
+    }
+
+    if (supabase) {
+      // In modern Supabase JS v2, 'email' is the standard type for verifying 6-digit numeric OTP codes.
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: token.trim(),
+        type: "email",
       });
       return { error: error ? new Error(error.message) : null };
     }
@@ -132,7 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isSandbox, signIn, signOut, updateSandboxTier }}>
+    <AuthContext.Provider value={{ user, loading, isSandbox, signIn, verifyOtp, signOut, updateSandboxTier }}>
       {children}
     </AuthContext.Provider>
   );

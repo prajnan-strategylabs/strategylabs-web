@@ -6,6 +6,8 @@ import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { StrategyLab } from "./pages/StrategyLab";
 import { Signals } from "./pages/Signals";
+import { Blog } from "./pages/Blog";
+import { Disclosures } from "./pages/Disclosures";
 
 function App() {
   return (
@@ -15,6 +17,8 @@ function App() {
           {/* Public Landing & Auth routes */}
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/disclosures" element={<Disclosures />} />
 
           {/* Authenticated Application routes (AppLayout wrapped) */}
           <Route element={<AppLayout />}>

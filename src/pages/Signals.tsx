@@ -76,7 +76,7 @@ export function Signals() {
           <div>
             <h4 className="text-xs font-bold text-yellow-500 uppercase tracking-wide">Daily Signals Delay Active</h4>
             <p className="text-xs text-ink-muted mt-1 leading-relaxed">
-              You are currently viewing standard **1-day delayed signals**. Upgrading to Explorer ($19/mo) unlocks **instant push notifications** the second entry levels are triggered.
+              You are currently viewing standard <strong className="text-ink">1-day delayed signals</strong>. Upgrading to Explorer ($19/mo) unlocks <strong className="text-ink">instant push notifications</strong> the second entry levels are triggered.
             </p>
           </div>
         </div>

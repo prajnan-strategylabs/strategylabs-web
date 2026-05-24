@@ -165,7 +165,7 @@ risk_management:
           <Loader2 className="h-10 w-10 animate-spin text-accent mb-4" />
           <h3 className="font-bold text-ink">Simulating Backtest...</h3>
           <p className="text-xs text-ink-muted mt-2 max-w-xs leading-relaxed">
-            Running compiled strategy rules across **8 years** of historical minute data (47 trading pairs).
+            Running compiled strategy rules across <strong className="text-ink">8 years</strong> of historical minute data (47 trading pairs).
           </p>
         </div>
       )}
@@ -266,17 +266,17 @@ risk_management:
               </div>
               <h3 className="text-lg font-bold text-ink">Unlock Priority Backtests</h3>
               <p className="text-sm text-ink-muted mt-2 px-4">
-                Free plan users are limited to **1 active backtest/strategy**. Upgrade to Explorer ($19/mo) to unlock:
+                Free plan users are limited to <strong className="text-ink">1 active backtest/strategy</strong>. Upgrade to Explorer ($19/mo) to unlock:
               </p>
-              
+
               <div className="w-full mt-6 space-y-3 text-left bg-bg-elev/40 rounded-2xl p-4 border border-line/40">
                 <div className="flex items-center gap-2.5 text-xs text-ink">
                   <CheckCircle2 className="h-4.5 w-4.5 text-accent flex-none" />
-                  <span>**Unlimited** draft strategies in your list</span>
+                  <span><strong>Unlimited</strong> draft strategies in your list</span>
                 </div>
                 <div className="flex items-center gap-2.5 text-xs text-ink">
                   <CheckCircle2 className="h-4.5 w-4.5 text-accent flex-none" />
-                  <span>**Instant** multi-threaded backtest engine</span>
+                  <span><strong>Instant</strong> multi-threaded backtest engine</span>
                 </div>
                 <div className="flex items-center gap-2.5 text-xs text-ink">
                   <CheckCircle2 className="h-4.5 w-4.5 text-accent flex-none" />

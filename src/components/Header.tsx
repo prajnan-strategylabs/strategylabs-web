@@ -23,9 +23,9 @@ export function Header() {
         </a>
 
         <nav className="hidden items-center gap-8 md:flex">
-          <a href="#how" className="text-sm text-ink-muted hover:text-ink transition-colors">How it works</a>
-          <a href="#proof" className="text-sm text-ink-muted hover:text-ink transition-colors">Proof</a>
-          <a href="#pricing" className="text-sm text-ink-muted hover:text-ink transition-colors">Pricing</a>
+          <a href="/#how" className="text-sm text-ink-muted hover:text-ink transition-colors">How it works</a>
+          <a href="/#proof" className="text-sm text-ink-muted hover:text-ink transition-colors">Proof</a>
+          <a href="/#pricing" className="text-sm text-ink-muted hover:text-ink transition-colors">Pricing</a>
         </nav>
 
         {isLaunched ? (

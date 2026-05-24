@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
 import { Plus, Play, Pause, Sparkles, CheckCircle2, ChevronRight } from "lucide-react";
+import { WaitlistGate } from "../components/WaitlistGate";
 
 interface Strategy {
   id: string;
@@ -66,6 +67,7 @@ export function Dashboard() {
   }
 
   return (
+    <WaitlistGate>
     <div className="space-y-6 pt-4">
       {/* ── TIER STATUS BANNER (Free Gated Callout) ── */}
       {user?.tier === "free" && (
@@ -225,21 +227,21 @@ export function Dashboard() {
               </div>
               <h3 className="text-lg font-bold text-ink">Upgrade to Active Explorer</h3>
               <p className="text-sm text-ink-muted mt-2 px-4">
-                Free plan users are limited to **1 active strategy** at a time. Upgrade to Explorer ($19/mo) to unlock:
+                Free plan users are limited to <strong className="text-ink">1 active strategy</strong> at a time. Upgrade to Explorer ($19/mo) to unlock:
               </p>
-              
+
               <div className="w-full mt-6 space-y-3 text-left bg-bg-elev/40 rounded-2xl p-4 border border-line/40">
                 <div className="flex items-center gap-2.5 text-xs text-ink">
                   <CheckCircle2 className="h-4.5 w-4.5 text-accent flex-none" />
-                  <span>Up to **3 active strategies** (instead of 1)</span>
+                  <span>Up to <strong>3 active strategies</strong> (instead of 1)</span>
                 </div>
                 <div className="flex items-center gap-2.5 text-xs text-ink">
                   <CheckCircle2 className="h-4.5 w-4.5 text-accent flex-none" />
-                  <span>**Real-time** Signals feed (no delay)</span>
+                  <span><strong>Real-time</strong> Signals feed (no delay)</span>
                 </div>
                 <div className="flex items-center gap-2.5 text-xs text-ink">
                   <CheckCircle2 className="h-4.5 w-4.5 text-accent flex-none" />
-                  <span>**Priority** queue backtest runs</span>
+                  <span><strong>Priority</strong> queue backtest runs</span>
                 </div>
               </div>
 
@@ -262,5 +264,6 @@ export function Dashboard() {
         </div>
       )}
     </div>
+    </WaitlistGate>
   );
 }

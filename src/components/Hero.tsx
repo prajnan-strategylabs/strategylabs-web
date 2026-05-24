@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowRight, Sparkles, CheckCircle2, AlertCircle, Clock } from "lucide-react";
 import { joinWaitlist } from "../lib/waitlist";
-import { apiGetConfig } from "../lib/api";
+import { useAppConfig } from "../lib/useAppConfig";
 
 type Status =
   | { kind: "idle" }
@@ -13,9 +13,9 @@ type Status =
 export function Hero() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
-  const [isLaunched, setIsLaunched] = useState(false);
+  const { is_launched: isLaunched, waitlist_full: waitlistFull } = useAppConfig();
 
-  // Load waitlist status & backend config on mount
+  // Restore "already joined" success state from localStorage
   useEffect(() => {
     try {
       const alreadyJoined = localStorage.getItem("joined_waitlist");
@@ -25,10 +25,6 @@ export function Hero() {
     } catch {
       // ignore localStorage block
     }
-
-    apiGetConfig().then((cfg) => {
-      setIsLaunched(cfg.is_launched);
-    });
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -87,6 +83,29 @@ export function Hero() {
               Launch AI Strategy Lab Now
               <ArrowRight className="h-5 w-5" />
             </Link>
+          ) : waitlistFull && !submitted ? (
+            <div className="card flex flex-col gap-4 border-yellow-500/30 bg-yellow-500/5">
+              <div className="flex items-start gap-3">
+                <Clock className="h-6 w-6 flex-none text-yellow-500 mt-0.5" />
+                <div>
+                  <div className="font-semibold text-sm">
+                    The waitlist is currently full.
+                  </div>
+                  <div className="text-xs text-ink-muted mt-1 leading-relaxed">
+                    We're at capacity for the current beta cohort. Follow{" "}
+                    <a
+                      href="https://twitter.com/strategylabs"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="text-accent hover:underline"
+                    >
+                      @strategylabs
+                    </a>{" "}
+                    — we'll open the next batch within a few weeks.
+                  </div>
+                </div>
+              </div>
+            </div>
           ) : submitted ? (
             <div className="card flex flex-col gap-4 border-accent/30 bg-accent/5">
               <div className="flex items-start gap-3">
