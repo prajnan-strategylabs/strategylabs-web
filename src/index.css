@@ -4,6 +4,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design tokens used by inline styles in mobile redesign ── */
+:root {
+  --bg:        #0a0e1a;
+  --bg-card:   #0f1525;
+  --bg-elev:   #141b2e;
+  --ink:       #e6e9f0;
+  --ink-muted: #8b94a8;
+  --ink-subtle:#5a6378;
+  --accent:    #22d3aa;
+  --line:      #1e2740;
+}
+
 @layer base {
   html {
     @apply bg-bg text-ink;
@@ -61,3 +73,19 @@
     @apply font-mono text-2xl font-semibold tabular-nums tracking-tight;
   }
 }
+
+/* ── Mobile redesign — keyframes & utilities used by inline styles ── */
+@keyframes spark-draw { to { stroke-dashoffset: 0; } }
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes lping { 75%, 100% { transform: scale(2); opacity: 0; } }
+@keyframes lpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+/* Pingy "live" halo used on icon tiles + dots */
+.animate-ping { animation: lping 1.6s cubic-bezier(0,0,0.2,1) infinite; }
+
+/* Hide scrollbar for horizontal scrolling chip rows */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+/* Tabular numerics helper used pervasively */
+.tabular-nums { font-variant-numeric: tabular-nums; }

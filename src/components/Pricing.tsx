@@ -6,50 +6,37 @@ const TIERS = [
     price: "$0",
     sub: "forever",
     features: [
-      "Backtest viewer (read-only)",
-      "1 strategy test per month",
-      "Demo signals (24h delayed)",
-      "5 asset pairs",
+      "Browse the V22 audit log",
+      "Signals delayed 24h",
+      "Last 5 signals visible",
+      "1 strategy slot in the lab",
     ],
     cta: "Get started",
     highlight: false,
   },
   {
-    name: "Explorer",
-    price: "$19",
-    sub: "per month",
-    features: [
-      "Unlimited strategy tests",
-      "Full backtest history",
-      "All 47 asset pairs",
-      "Robustness audit on every run",
-    ],
-    cta: "Start exploring",
-    highlight: false,
-  },
-  {
     name: "Trader",
-    price: "$59",
+    price: "$49",
     sub: "per month",
     features: [
-      "Everything in Explorer",
-      "Real-time signals (Telegram + push)",
-      "5 active strategies running live",
-      "Performance dashboard",
+      "Realtime V22 signals",
+      "Telegram alerts on every entry",
+      "Full audit history + CSV exports",
+      "10 active strategy slots",
     ],
-    cta: "Start trading",
+    cta: "Start 7-day trial",
     highlight: true,
     badge: "Most popular",
   },
   {
     name: "Auto",
-    price: "$249",
+    price: "$149",
     sub: "per month",
     features: [
       "Everything in Trader",
-      "Auto-execute via exchange API",
-      "Multi-account support",
-      "Custom risk parameters",
+      "Auto-execute on Binance / Bybit",
+      "Webhook outputs for your bot",
+      "Unlimited strategy slots",
       "Priority support",
     ],
     cta: "Talk to us",
@@ -74,7 +61,7 @@ export function Pricing() {
           </p>
         </div>
 
-        <div className="mt-12 grid gap-6 lg:grid-cols-4">
+        <div className="mt-12 grid gap-6 lg:grid-cols-3 max-w-5xl mx-auto">
           {TIERS.map((t) => (
             <Tier key={t.name} {...t} />
           ))}

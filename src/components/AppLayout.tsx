@@ -1,13 +1,20 @@
 import { Navigate, Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth, type UserTier } from "../context/AuthContext";
 import { LogoLockup } from "./Logo";
-import { LayoutDashboard, Beaker, Radio, LogOut, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, Beaker, Radio, LogOut, ShieldAlert, Search } from "lucide-react";
+import { LiveDot, Pill } from "./MobileUI";
 
 export function AppLayout() {
-  const { user, loading, signOut, isSandbox, updateSandboxTier } = useAuth();
+  const { user, loading, tierResolved, signOut, isSandbox, updateSandboxTier } = useAuth();
   const location = useLocation();
 
-  if (loading) {
+  // Hold the page in the loading state until we know:
+  //   1. Whether there's a session at all (loading=false)
+  //   2. The user's real tier (tierResolved=true)
+  // Without (2) the optimistic "free" tier would briefly trigger the
+  // WaitlistGate's "Join the waitlist" view before the real tier loaded —
+  // jittery flash on first paint. Holding here keeps the experience stable.
+  if (loading || (user && !tierResolved)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
@@ -22,7 +29,7 @@ export function AppLayout() {
 
   const navItems = [
     { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
-    { label: "AI Lab", to: "/lab", icon: Beaker },
+    { label: "Strategy Lab", to: "/lab", icon: Beaker },
     { label: "Signals", to: "/signals", icon: Radio },
   ];
 
@@ -39,10 +46,8 @@ export function AppLayout() {
             className="rounded bg-yellow-500/20 border-none px-2 py-0.5 text-yellow-500 font-bold focus:ring-0 cursor-pointer outline-none"
           >
             <option value="free" className="bg-bg text-ink">Free</option>
-            <option value="explorer" className="bg-bg text-ink">Explorer ($19)</option>
-            <option value="trader" className="bg-bg text-ink">Trader ($59)</option>
-            <option value="pro" className="bg-bg text-ink">Pro ($149)</option>
-            <option value="auto" className="bg-bg text-ink">Auto ($249)</option>
+            <option value="trader" className="bg-bg text-ink">Trader ($49)</option>
+            <option value="auto" className="bg-bg text-ink">Auto ($149)</option>
           </select>
         </div>
       )}
@@ -102,42 +107,77 @@ export function AppLayout() {
       </aside>
 
       {/* ── MOBILE HEADER (TOP BAR) ── */}
-      <header className="md:hidden flex h-14 items-center justify-between border-b border-line bg-bg/80 backdrop-blur-md px-6 sticky top-0 z-40">
+      <header className="md:hidden relative z-40 flex items-center justify-between px-5 pt-3 pb-2 bg-bg/80 backdrop-blur-md">
         <LogoLockup />
-        <div className="flex items-center gap-3">
-          <span className="rounded-full bg-accent/10 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-accent">
-            {user.tier}
-          </span>
-          <button onClick={signOut} className="text-red-400 p-1">
-            <LogOut className="h-4.5 w-4.5" />
+        <div className="flex items-center gap-2">
+          <Pill tone="accent" className="!text-[9px]">
+            <LiveDot size={4} /> {user.tier === "free" ? "Free" : user.tier}
+          </Pill>
+          <button
+            aria-label="Search"
+            className="h-8 w-8 rounded-full bg-bg-elev border border-line/60 flex items-center justify-center text-ink-muted hover:text-ink transition active:scale-95"
+          >
+            <Search className="h-3.5 w-3.5" />
           </button>
+          <button
+            onClick={signOut}
+            aria-label="Sign out"
+            className="h-8 w-8 rounded-full border border-line/60 bg-bg-elev flex items-center justify-center text-red-400/90 hover:text-red-400 transition active:scale-95"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+          </button>
+          <div className="h-8 w-8 rounded-full overflow-hidden border border-line/60 bg-bg-elev flex items-center justify-center text-[10px] font-bold text-ink-muted uppercase">
+            {(user.email?.[0] ?? "U")}
+          </div>
         </div>
       </header>
 
       {/* ── MAIN CONTENT ── */}
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-6 p-6">
+      <main className="relative z-0 flex-1 overflow-y-auto pb-28 md:pb-6 px-5 md:px-6 pt-2 md:pt-6">
         <div className="max-w-4xl mx-auto w-full">
           <Outlet />
         </div>
       </main>
 
-      {/* ── MOBILE BOTTOM NAVIGATION BAR ── */}
-      <nav className="md:hidden fixed bottom-4 left-4 right-4 z-40 flex h-16 items-center justify-around rounded-2xl border border-line bg-bg-card/70 shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-md px-4">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const active = location.pathname === item.to;
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={`flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-all active:scale-95
-                         ${active ? "text-accent" : "text-ink-muted"}`}
-            >
-              <Icon className={`h-5 w-5 transition-transform ${active ? "scale-110" : ""}`} />
-              <span className="text-[10px] font-bold mt-1 tracking-tight">{item.label}</span>
-            </Link>
-          );
-        })}
+      {/* ── MOBILE BOTTOM NAVIGATION BAR (floating pill, matches handoff design) ── */}
+      <nav className="md:hidden fixed bottom-4 left-4 right-4 z-40">
+        <div
+          className="rounded-2xl border bg-bg-card/70 backdrop-blur-md flex items-center justify-around h-[60px] px-2"
+          style={{
+            borderColor: "var(--line)",
+            boxShadow:
+              "0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)",
+          }}
+        >
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = location.pathname === item.to;
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="flex flex-col items-center justify-center w-16 active:scale-95 transition relative"
+              >
+                {active && (
+                  <span
+                    className="absolute -top-1 h-1 w-6 rounded-full"
+                    style={{ background: "var(--accent)" }}
+                  />
+                )}
+                <Icon
+                  className="h-5 w-5 transition"
+                  style={{ color: active ? "var(--accent)" : "var(--ink-subtle)" }}
+                />
+                <span
+                  className="text-[10px] font-bold mt-0.5 tracking-tight"
+                  style={{ color: active ? "var(--ink)" : "var(--ink-subtle)" }}
+                >
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
     </div>
   );

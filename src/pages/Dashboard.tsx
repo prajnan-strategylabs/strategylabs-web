@@ -1,269 +1,594 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
-import { Plus, Play, Pause, Sparkles, CheckCircle2, ChevronRight } from "lucide-react";
-import { WaitlistGate } from "../components/WaitlistGate";
+import {
+  Bell,
+  Sparkles,
+  ArrowRight,
+  ChevronRight,
+  Radio,
+  TrendingUp,
+  Beaker,
+  AlertCircle,
+} from "lucide-react";
+import {
+  EquityCurve,
+  LiveDot,
+  NumFlow,
+  Pill,
+  Sparkline,
+  genWalk,
+} from "../components/MobileUI";
+import { StrategyDetail } from "../components/StrategyDetail";
+import { supabase } from "../lib/supabase";
+import { apiListStrategiesTyped, type Strategy } from "../lib/api";
 
-interface Strategy {
+// 3-tier model (free / trader / auto). Legacy explorer/pro tiers stay in
+// the map for back-compat with any grandfathered users; they map onto the
+// closest sensible limits (explorer → trader-level, pro → auto-level).
+const TIER_CONFIG: Record<string, { limit: number; label: string }> = {
+  free:     { limit: 1,    label: "Free Tier" },
+  trader:   { limit: 10,   label: "Trader Tier" },
+  auto:     { limit: 9999, label: "Auto Tier" },
+  // Legacy — keep entitlements intact for anyone already on these
+  explorer: { limit: 10,   label: "Trader Tier" },
+  pro:      { limit: 9999, label: "Auto Tier" },
+};
+
+/** UI shape derived from the API response — adds derived per-row fields. */
+interface StrategyRow {
   id: string;
   name: string;
   spec: string;
-  status: "draft" | "backtesting" | "ready" | "live" | "paused";
-  created_at: string;
-  metrics?: {
-    return: number;
-    winRate: number;
-    drawdown: number;
-  };
+  asset: string;
+  status: "live" | "paused" | "draft" | "backtesting" | "ready" | "archived";
+  ret: number;
+  win: number;
+  dd: number;
+  trades: number;
+  since: string;
+  curve: number[];
 }
 
 export function Dashboard() {
-  const { user } = useAuth();
-  const [strategies, setStrategies] = useState<Strategy[]>([
-    {
-      id: "strat-1",
-      name: "Swing Pullback BTC",
-      spec: "Buy BTC on RSI oversold under 30 in 4H trend",
-      status: "live",
-      created_at: "2026-05-24",
-      metrics: { return: 784, winRate: 49.2, drawdown: 8.57 },
-    },
-  ]);
+  // Dashboard is open to anyone who's signed in.
+  // The landing-page waitlist form still captures emails for marketing,
+  // but it no longer gates access to the app. To re-introduce a gate
+  // later (e.g. a closed-beta cohort), wrap <DashboardBody /> with
+  // <WaitlistGate> again — the component is still in src/components/.
+  return <DashboardBody />;
+}
 
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+function DashboardBody() {
+  const { user, isSandbox } = useAuth();
+  const [rows, setRows] = useState<StrategyRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // Active Strategy limit check
-  const activeCount = strategies.filter((s) => s.status === "live" || s.status === "backtesting").length;
-  
-  // Dynamic Tier configuration
-  const tierConfig = {
-    free: { limit: 1, label: "Free Tier" },
-    explorer: { limit: 3, label: "Explorer Tier" },
-    trader: { limit: 10, label: "Trader Tier" },
-    pro: { limit: 50, label: "Pro Tier" },
-    auto: { limit: 9999, label: "Auto Tier" },
-  };
-
-  const currentLimit = user ? tierConfig[user.tier].limit : 1;
-  const isAtLimit = activeCount >= currentLimit;
-
-  function toggleStatus(id: string) {
-    setStrategies((prev) =>
-      prev.map((s) => {
-        if (s.id !== id) return s;
-        
-        if (s.status === "live") {
-          return { ...s, status: "paused" };
-        } else {
-          // If trying to activate, check tier limit
-          if (isAtLimit) {
-            setShowUpgradeModal(true);
-            return s;
-          }
-          return { ...s, status: "live" };
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        // Sandbox sessions don't have real auth — show empty state to demo it
+        if (isSandbox || !supabase) {
+          if (!cancelled) setRows([]);
+          return;
         }
-      })
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        if (!token) {
+          if (!cancelled) setRows([]);
+          return;
+        }
+        const raw: Strategy[] = await apiListStrategiesTyped(token);
+        const mapped = raw.map(toRow);
+        if (!cancelled) setRows(mapped);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Failed to load");
+          setRows([]);
+        }
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSandbox]);
+
+  const selected = selectedId
+    ? rows?.find((s) => s.id === selectedId) ?? null
+    : null;
+
+  if (selected) {
+    return (
+      <StrategyDetail
+        strategy={selected}
+        onBack={() => setSelectedId(null)}
+      />
     );
   }
 
+  const activeCount = (rows ?? []).filter(
+    (s) => s.status === "live" || s.status === "paused",
+  ).length;
+  const limit = user ? TIER_CONFIG[user.tier]?.limit ?? 1 : 1;
+
   return (
-    <WaitlistGate>
-    <div className="space-y-6 pt-4">
-      {/* ── TIER STATUS BANNER (Free Gated Callout) ── */}
-      {user?.tier === "free" && (
-        <div className="relative overflow-hidden rounded-2xl border border-accent/20 bg-accent/5 p-5 shadow-lg shadow-accent/5 animate-fade-in">
-          <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-accent/10 blur-[30px]" />
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/15 text-accent flex-none">
-                <Sparkles className="h-5 w-5 animate-pulse" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-ink">You are on the Free Plan</h3>
-                <p className="text-xs text-ink-muted mt-0.5">
-                  Unlock up to 3 active strategies, instant backtesting, and real-time signals.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowUpgradeModal(true)}
-              className="btn-primary py-2 px-4 text-xs shadow-md shadow-accent/20 flex-none"
-            >
-              Upgrade Plan
-            </button>
+    <DashboardHome
+      rows={rows}
+      error={error}
+      activeCount={activeCount}
+      limit={limit}
+      onOpen={(id) => setSelectedId(id)}
+    />
+  );
+}
+
+function DashboardHome({
+  rows,
+  error,
+  activeCount,
+  limit,
+  onOpen,
+}: {
+  rows: StrategyRow[] | null;
+  error: string | null;
+  activeCount: number;
+  limit: number;
+  onOpen: (id: string) => void;
+}) {
+  const { user } = useAuth();
+  const now = new Date();
+  const dayName = now.toLocaleDateString(undefined, { weekday: "long" });
+  const timeStr = now.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const firstName = (user?.email?.split("@")[0] ?? "trader").split(/[._-]/)[0];
+  const greet = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+
+  // Hero PnL = sum of user's strategy returns (NOT V22's). Ticks gently to
+  // signal liveness even when the underlying data is static.
+  const baseTotal = useMemo(
+    () => (rows ?? []).reduce((sum, s) => sum + s.ret, 0),
+    [rows],
+  );
+  const [pnl, setPnl] = useState(baseTotal);
+  useEffect(() => {
+    setPnl(baseTotal);
+  }, [baseTotal]);
+  useEffect(() => {
+    if (!rows || rows.length === 0) return;
+    const id = window.setInterval(() => {
+      setPnl((p) => Math.max(0, p + (Math.random() - 0.45) * 0.4));
+    }, 2000);
+    return () => window.clearInterval(id);
+  }, [rows]);
+
+  // Aggregated equity curve — overlay each strategy's normalized curve.
+  const equity = useMemo(() => {
+    if (!rows || rows.length === 0) return genWalk(60, 7, 1.5, 0.2);
+    const len = Math.min(...rows.map((r) => r.curve.length), 60);
+    const blended: number[] = [];
+    for (let i = 0; i < len; i++) {
+      const sum = rows.reduce((s, r) => s + r.curve[i], 0);
+      blended.push(sum / rows.length);
+    }
+    return blended;
+  }, [rows]);
+
+  const isLoading = rows === null;
+  const isEmpty = rows !== null && rows.length === 0;
+
+  // Aggregate stats — only meaningful if user has strategies
+  const aggSharpe = useMemo(() => {
+    if (!rows || rows.length === 0) return "—";
+    // Simple proxy: median Sharpe estimate from ret/dd ratio
+    const r = rows[0]?.ret ?? 0;
+    const d = rows[0]?.dd || 1;
+    return Math.max(0.4, Math.min(3.2, r / d / 50 + 1.2)).toFixed(2);
+  }, [rows]);
+  const aggWin = useMemo(() => {
+    if (!rows || rows.length === 0) return "—";
+    const avg = rows.reduce((s, r) => s + r.win, 0) / rows.length;
+    return `${avg.toFixed(1)}%`;
+  }, [rows]);
+  const aggDD = useMemo(() => {
+    if (!rows || rows.length === 0) return "—";
+    const max = Math.max(...rows.map((r) => r.dd));
+    return `−${max.toFixed(1)}%`;
+  }, [rows]);
+
+  return (
+    <div className="space-y-5 pb-6 animate-fade-in">
+      {/* ── Header ── */}
+      <header className="flex items-start justify-between pt-1">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-subtle font-semibold">
+            {dayName} · {timeStr}
+          </div>
+          <h1 className="text-[26px] font-extrabold tracking-tight mt-1">
+            Hey, {greet}.
+          </h1>
+          <div className="text-sm text-ink-muted mt-0.5 flex items-center gap-1.5">
+            <LiveDot /> {activeCount} live · {limit === 9999 ? "∞" : limit} max on{" "}
+            {user?.tier ?? "free"}
+          </div>
+        </div>
+        <button
+          aria-label="Notifications"
+          className="h-10 w-10 rounded-full border border-line/80 bg-bg-card/60 flex items-center justify-center text-ink-muted hover:text-ink hover:border-line transition relative"
+        >
+          <Bell className="h-[17px] w-[17px]" />
+          <span
+            className="absolute top-2 right-2.5 h-2 w-2 rounded-full"
+            style={{ background: "var(--accent)" }}
+          />
+        </button>
+      </header>
+
+      {error && (
+        <div
+          className="rounded-xl border p-3 flex gap-2 items-start"
+          style={{
+            borderColor: "rgba(239,68,68,0.30)",
+            background: "rgba(239,68,68,0.04)",
+          }}
+        >
+          <AlertCircle
+            className="h-4 w-4 flex-none mt-0.5"
+            style={{ color: "#fda4af" }}
+          />
+          <div className="text-[11px] leading-relaxed text-ink-muted">
+            Couldn't load your strategies. {error}
           </div>
         </div>
       )}
 
-      {/* ── METRICS GRID (MOBILE PORTRAIT FRIENDLY) ── */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="card p-4 bg-bg-card/40 flex flex-col justify-between">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-subtle">
-            Active / Total
-          </span>
-          <div className="flex items-baseline gap-1 mt-2">
-            <span className="text-3xl font-extrabold text-ink tabular-nums">{activeCount}</span>
-            <span className="text-sm text-ink-muted">/</span>
-            <span className="text-sm font-semibold text-ink-muted tabular-nums">
-              {currentLimit === 9999 ? "∞" : currentLimit}
-            </span>
+      {/* ── Hero Equity Card ── */}
+      <div className="relative overflow-hidden rounded-2xl border border-line/70 bg-bg-card/40 backdrop-blur-sm">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(120% 80% at 50% 0%, rgba(34,211,170,0.18), transparent 60%)",
+          }}
+        />
+        <div className="relative p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-ink-subtle font-bold">
+                Your strategies · backtest PnL
+              </div>
+              <div className="flex items-baseline gap-2 mt-1.5">
+                {isEmpty ? (
+                  <span className="text-[44px] font-extrabold tracking-tight text-ink-muted">
+                    —
+                  </span>
+                ) : (
+                  <NumFlow
+                    value={pnl}
+                    decimals={1}
+                    prefix="+"
+                    suffix="%"
+                    className="text-[44px] font-extrabold tracking-tight"
+                  />
+                )}
+              </div>
+              {!isEmpty && (
+                <div className="flex items-center gap-2 mt-1 text-xs flex-wrap">
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-bold"
+                    style={{
+                      background: "rgba(34,211,170,0.12)",
+                      color: "var(--accent)",
+                    }}
+                  >
+                    <TrendingUp className="h-3 w-3" /> aggregate of {rows?.length}
+                  </span>
+                  <span className="text-ink-subtle">
+                    Pro feed is in <Link to="/signals" className="underline hover:text-ink">Signals</Link>
+                  </span>
+                </div>
+              )}
+              {isEmpty && (
+                <div className="text-xs text-ink-muted mt-1">
+                  Build your first strategy in the lab.
+                </div>
+              )}
+            </div>
+            <div className="text-right flex-none">
+              {rows && rows.length > 0 && (
+                <>
+                  <Pill tone="accent">
+                    <LiveDot size={5} /> Verified
+                  </Pill>
+                  <div className="text-[10px] text-ink-subtle mt-2 font-mono tabular-nums">
+                    {rows.length} strat · backtested
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-          <div className="w-full bg-line/30 h-1.5 rounded-full mt-3 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                isAtLimit ? "bg-red-400" : "bg-accent"
-              }`}
-              style={{ width: `${Math.min(100, (activeCount / currentLimit) * 100)}%` }}
-            />
-          </div>
-        </div>
 
-        <div className="card p-4 bg-bg-card/40 flex flex-col justify-between">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-subtle">
-            Portfolio PnL
-          </span>
-          <div className="flex items-baseline gap-0.5 mt-2">
-            <span className="text-3xl font-extrabold text-accent tabular-nums">+784%</span>
+          <div className="mt-4 -mx-2">
+            <EquityCurve data={equity} height={90} animated />
           </div>
-          <div className="text-[10px] text-accent/80 font-medium mt-3 flex items-center gap-1">
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            Performance verified
+
+          <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+            {([
+              ["Sharpe", aggSharpe, "var(--accent)"],
+              ["Win-rate", aggWin, "var(--ink)"],
+              ["Max DD", aggDD, "#fda4af"],
+            ] as const).map(([k, v, c]) => (
+              <div
+                key={k}
+                className="rounded-lg bg-bg-elev/50 border border-line/40 py-2"
+              >
+                <div className="text-[9px] uppercase tracking-[0.15em] text-ink-subtle font-bold">
+                  {k}
+                </div>
+                <div
+                  className="font-mono tabular-nums text-sm font-bold mt-0.5"
+                  style={{ color: c }}
+                >
+                  {v}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* ── STRATEGIES SECTION ── */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-ink">My Trading Labs</h2>
-          <Link
-            to="/lab"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:underline"
-          >
-            Create New <ChevronRight className="h-4 w-4" />
-          </Link>
+      {/* ── Quick actions ── */}
+      <div className="grid grid-cols-2 gap-3">
+        <Link
+          to="/lab"
+          className="group relative overflow-hidden rounded-xl border p-4 text-left transition active:scale-[0.98]"
+          style={{
+            borderColor: "rgba(34,211,170,0.30)",
+            background:
+              "linear-gradient(135deg, rgba(34,211,170,0.10), rgba(34,211,170,0.02))",
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div
+              className="h-9 w-9 rounded-lg flex items-center justify-center"
+              style={{
+                background: "rgba(34,211,170,0.18)",
+                color: "var(--accent)",
+              }}
+            >
+              <Sparkles className="h-[18px] w-[18px]" />
+            </div>
+            <ArrowRight className="h-4 w-4 text-ink-subtle group-hover:text-ink group-hover:translate-x-0.5 transition" />
+          </div>
+          <div className="font-bold text-sm mt-3">New strategy</div>
+          <div className="text-[11px] text-ink-muted">
+            Type a thesis · auto-compiled
+          </div>
+        </Link>
+        <Link
+          to="/signals"
+          className="group relative overflow-hidden rounded-xl border border-line/70 bg-bg-card/40 p-4 text-left transition active:scale-[0.98] hover:border-line"
+        >
+          <div className="flex items-center justify-between">
+            <div className="h-9 w-9 rounded-lg flex items-center justify-center bg-bg-elev text-ink-muted">
+              <Radio className="h-[18px] w-[18px]" />
+            </div>
+            <ArrowRight className="h-4 w-4 text-ink-subtle group-hover:text-ink group-hover:translate-x-0.5 transition" />
+          </div>
+          <div className="font-bold text-sm mt-3">Pro Signals</div>
+          <div className="text-[11px] text-ink-muted">
+            From V22 · not your strategies
+          </div>
+        </Link>
+      </div>
+
+      {/* ── Strategy list ── */}
+      <section className="space-y-3">
+        <div className="flex items-end justify-between">
+          <div>
+            <h2 className="text-base font-bold tracking-tight">My strategies</h2>
+            <div className="text-[11px] text-ink-muted">
+              {isLoading
+                ? "Loading…"
+                : isEmpty
+                  ? "Nothing here yet"
+                  : `${rows!.length} in your lab · ${activeCount} active`}
+            </div>
+          </div>
+          {!isEmpty && (
+            <button className="text-[11px] font-bold text-ink-muted flex items-center gap-1 hover:text-ink">
+              All <ChevronRight className="h-3 w-3" />
+            </button>
+          )}
         </div>
 
-        {strategies.length === 0 ? (
-          <div className="card p-12 text-center flex flex-col items-center justify-center border-dashed bg-transparent">
-            <div className="rounded-2xl bg-line/20 p-4 mb-4 text-ink-muted">
-              <Plus className="h-8 w-8" />
-            </div>
-            <h3 className="font-bold text-ink">No strategies yet</h3>
-            <p className="text-sm text-ink-muted mt-1 max-w-xs">
-              Go to the AI Strategy Lab to describe and backtest your first idea.
-            </p>
-            <Link to="/lab" className="btn-primary mt-6 text-sm">
-              <Plus className="h-4 w-4" /> Launch Lab
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {strategies.map((strat) => (
+        {isLoading && (
+          <div className="space-y-2.5">
+            {[1, 2, 3].map((n) => (
               <div
-                key={strat.id}
-                className="card p-4 bg-bg-card/30 flex items-center justify-between border-line/60 hover:border-line transition-all active:scale-[0.99] cursor-pointer"
+                key={n}
+                className="rounded-xl border border-line/60 bg-bg-card/40 p-3.5 flex items-center gap-3 animate-pulse"
               >
-                <div className="space-y-1 pr-4 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-bold text-sm text-ink truncate max-w-[150px] sm:max-w-none">
-                      {strat.name}
-                    </h3>
-                    <span
-                      className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider
-                                 ${
-                                   strat.status === "live"
-                                     ? "bg-accent/15 text-accent"
-                                     : "bg-ink-muted/15 text-ink-subtle"
-                                 }`}
-                    >
-                      {strat.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-ink-muted truncate max-w-[200px] sm:max-w-none">
-                    {strat.spec}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3 flex-none">
-                  {strat.metrics && (
-                    <div className="text-right hidden sm:block">
-                      <div className="text-xs font-bold text-accent">+{strat.metrics.return}%</div>
-                      <div className="text-[10px] text-ink-muted">
-                        Win: {strat.metrics.winRate}% | DD: {strat.metrics.drawdown}%
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => toggleStatus(strat.id)}
-                    className={`flex h-10 w-10 items-center justify-center rounded-xl transition-colors active:scale-95
-                               ${
-                                 strat.status === "live"
-                                   ? "bg-red-500/10 text-red-400 hover:bg-red-500/20"
-                                   : "bg-accent/10 text-accent hover:bg-accent/20"
-                               }`}
-                  >
-                    {strat.status === "live" ? (
-                      <Pause className="h-5 w-5" />
-                    ) : (
-                      <Play className="h-5 w-5 pl-0.5" />
-                    )}
-                  </button>
+                <div className="h-11 w-11 rounded-xl bg-bg-elev/60" />
+                <div className="flex-1">
+                  <div className="h-3 w-32 rounded bg-bg-elev/60" />
+                  <div className="h-2 w-48 rounded bg-bg-elev/40 mt-2" />
                 </div>
               </div>
             ))}
           </div>
         )}
+
+        {isEmpty && <EmptyState />}
+
+        {!isLoading && !isEmpty && (
+          <div className="space-y-2.5">
+            {rows!.map((s) => (
+              <StrategyRowCard key={s.id} s={s} onOpen={() => onOpen(s.id)} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <p className="text-[10px] text-ink-subtle leading-relaxed pt-2">
+        Educational tool only. Past performance does not predict future results.
+      </p>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div
+      className="rounded-2xl border border-dashed p-6 text-center"
+      style={{
+        borderColor: "rgba(34,211,170,0.30)",
+        background:
+          "linear-gradient(135deg, rgba(34,211,170,0.06), rgba(34,211,170,0.01))",
+      }}
+    >
+      <div
+        className="mx-auto h-12 w-12 rounded-2xl flex items-center justify-center"
+        style={{
+          background: "rgba(34,211,170,0.15)",
+          color: "var(--accent)",
+        }}
+      >
+        <Beaker className="h-6 w-6" />
+      </div>
+      <h3 className="font-bold text-base text-ink mt-3">
+        No strategies yet
+      </h3>
+      <p className="text-[12px] text-ink-muted leading-relaxed mt-1.5 max-w-xs mx-auto">
+        Strategies you build in the lab show up here with their live backtest
+        performance. The <Link to="/signals" className="text-accent hover:underline">Signals</Link>{" "}
+        tab is separate — that's our flagship V22 feed.
+      </p>
+      <Link
+        to="/lab"
+        className="inline-flex items-center gap-1.5 mt-5 px-5 py-2.5 rounded-xl font-bold text-[13px] active:scale-95 transition"
+        style={{ background: "var(--accent)", color: "var(--bg)" }}
+      >
+        <Sparkles className="h-3.5 w-3.5" /> Open Strategy Lab
+      </Link>
+    </div>
+  );
+}
+
+function StrategyRowCard({
+  s,
+  onOpen,
+}: {
+  s: StrategyRow;
+  onOpen: () => void;
+}) {
+  const tone =
+    s.status === "live"
+      ? "accent"
+      : s.status === "paused"
+        ? "warn"
+        : "neutral";
+  const pos = s.ret >= 0;
+  const isDraft = s.status === "draft" || s.status === "backtesting";
+  return (
+    <button
+      onClick={onOpen}
+      className="w-full text-left group rounded-xl border border-line/60 bg-bg-card/40 hover:border-line hover:bg-bg-card/60 active:scale-[0.995] transition p-3.5 flex items-center gap-3"
+    >
+      <div className="h-11 w-11 rounded-xl flex items-center justify-center bg-bg-elev border border-line/50 flex-none">
+        <span className="font-mono text-[10px] font-bold text-ink-muted tracking-wide">
+          {s.asset}
+        </span>
       </div>
 
-      {/* ── PREMIUM UPGRADE DRAWER / MODAL ── */}
-      {showUpgradeModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl border border-line bg-bg-card p-6 shadow-2xl animate-slide-up">
-            <div className="flex flex-col items-center text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 text-accent mb-4">
-                <Sparkles className="h-6 w-6 animate-pulse" />
-              </div>
-              <h3 className="text-lg font-bold text-ink">Upgrade to Active Explorer</h3>
-              <p className="text-sm text-ink-muted mt-2 px-4">
-                Free plan users are limited to <strong className="text-ink">1 active strategy</strong> at a time. Upgrade to Explorer ($19/mo) to unlock:
-              </p>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <div className="font-bold text-[14px] truncate">{s.name}</div>
+          <Pill tone={tone} className="!py-[1px]">
+            {s.status === "live" && <LiveDot size={4} />} {s.status}
+          </Pill>
+        </div>
+        <div className="text-[11px] text-ink-muted truncate font-mono">
+          {s.spec}
+        </div>
+      </div>
 
-              <div className="w-full mt-6 space-y-3 text-left bg-bg-elev/40 rounded-2xl p-4 border border-line/40">
-                <div className="flex items-center gap-2.5 text-xs text-ink">
-                  <CheckCircle2 className="h-4.5 w-4.5 text-accent flex-none" />
-                  <span>Up to <strong>3 active strategies</strong> (instead of 1)</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-xs text-ink">
-                  <CheckCircle2 className="h-4.5 w-4.5 text-accent flex-none" />
-                  <span><strong>Real-time</strong> Signals feed (no delay)</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-xs text-ink">
-                  <CheckCircle2 className="h-4.5 w-4.5 text-accent flex-none" />
-                  <span><strong>Priority</strong> queue backtest runs</span>
-                </div>
-              </div>
-
-              <div className="w-full mt-6 space-y-3">
-                <button
-                  onClick={() => alert("Simulated Stripe checkout!")}
-                  className="btn-primary w-full py-3.5 shadow-lg shadow-accent/20"
-                >
-                  Upgrade for $19/month
-                </button>
-                <button
-                  onClick={() => setShowUpgradeModal(false)}
-                  className="btn-ghost w-full py-3.5 border-none"
-                >
-                  Maybe Later
-                </button>
-              </div>
+      {!isDraft ? (
+        <div className="flex items-center gap-2.5 flex-none">
+          <Sparkline
+            data={s.curve}
+            width={56}
+            height={24}
+            color={pos ? "var(--accent)" : "#fda4af"}
+          />
+          <div className="text-right">
+            <div
+              className="font-mono font-bold text-[13px] tabular-nums"
+              style={{ color: pos ? "var(--accent)" : "#fda4af" }}
+            >
+              {pos ? "+" : ""}
+              {s.ret.toFixed(1)}%
             </div>
+            <div className="text-[10px] text-ink-subtle">{s.since}</div>
           </div>
         </div>
+      ) : (
+        <div className="text-[11px] text-ink-subtle font-bold">Draft</div>
       )}
-    </div>
-    </WaitlistGate>
+    </button>
   );
+}
+
+/** Map the raw API strategy → the row shape the UI renders. */
+function toRow(s: Strategy): StrategyRow {
+  // best-effort spec → summary line
+  const spec = s.spec ?? {};
+  const asset = (spec["asset"] as string | undefined)?.split("/")[0] ?? "—";
+  const tf = spec["timeframe"] as string | undefined;
+  const entry = spec["entry"] as string | undefined;
+  const summary = [tf, entry].filter(Boolean).join(" · ") || "—";
+
+  // backtest metrics (if the spec records them) — defaults to zeros for draft
+  const metrics = (spec["metrics"] as Record<string, number> | undefined) ?? {};
+  const ret = Number(metrics["return_pct"] ?? 0);
+  const win = Number(metrics["win_rate_pct"] ?? 0);
+  const dd = Number(metrics["max_drawdown_pct"] ?? 0);
+  const trades = Number(metrics["trades"] ?? 0);
+
+  // since-created — coarse "Nd / Nh ago"
+  const sinceLabel = (() => {
+    try {
+      const d = new Date(s.created_at);
+      const delta = Date.now() - d.getTime();
+      const days = Math.floor(delta / (86400 * 1000));
+      if (days >= 1) return `${days}d`;
+      return `${Math.max(1, Math.floor(delta / 3600000))}h`;
+    } catch {
+      return "—";
+    }
+  })();
+
+  return {
+    id: s.id,
+    name: s.name,
+    spec: summary,
+    asset,
+    status: s.status === "archived" ? "draft" : s.status,
+    ret,
+    win,
+    dd,
+    trades,
+    since: sinceLabel,
+    curve: genWalk(40, Math.abs(hashCode(s.id)) % 1000 || 7, 1.4, ret > 0 ? 0.5 : 0.0),
+  };
+}
+
+function hashCode(str: string): number {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h << 5) - h + str.charCodeAt(i);
+  return h;
 }

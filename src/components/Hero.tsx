@@ -54,7 +54,7 @@ export function Hero() {
         {/* Pre-headline tag */}
         <div className="mx-auto mb-6 flex w-fit items-center gap-2 rounded-full border border-accent/30 bg-accent/5 px-3 py-1 text-xs font-medium text-accent animate-fade-in">
           <Sparkles className="h-3 w-3" />
-          AI strategy lab — now in private beta
+          Strategy Lab — now in private beta
         </div>
 
         {/* Headline */}
@@ -68,8 +68,8 @@ export function Hero() {
 
         {/* Sub */}
         <p className="mx-auto mt-6 max-w-2xl text-center text-lg text-ink-muted md:text-xl animate-slide-up [animation-delay:100ms]">
-          Describe your strategy in plain English. Our AI builds it.
-          We backtest it across years of market data.
+          Describe your strategy in plain English. We auto-compile it.
+          Backtested across years of market data.
           Get live signals if it actually works.
         </p>
 
@@ -80,7 +80,7 @@ export function Hero() {
               to="/login"
               className="btn-primary w-full py-4 text-base font-bold shadow-lg shadow-accent/25 flex items-center justify-center gap-2"
             >
-              Launch AI Strategy Lab Now
+              Launch Strategy Lab
               <ArrowRight className="h-5 w-5" />
             </Link>
           ) : waitlistFull && !submitted ? (

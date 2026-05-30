@@ -127,3 +127,208 @@ export async function apiGetShowcaseData(
   }
   return res.json() as Promise<ShowcaseResponse>;
 }
+
+// ── V22 Track Record (powers Signals upsell page) ─────────────────────────────
+
+export interface V22YearRow {
+  year: number;
+  pct: number;
+  trades: number;
+  label: string;
+  is_ytd?: boolean;
+}
+
+export interface V22RecentWin {
+  asset: string;
+  dir: "LONG" | "SHORT";
+  ret_pct: number;
+  hold_days: number;
+  when_ago: string;
+  entry_time: string;
+}
+
+export interface V22RecentCall {
+  /** undefined when the call comes from the historical CSV (pre-DB); set when live. */
+  id?: number;
+  asset: string;
+  symbol?: string;
+  dir: "LONG" | "SHORT";
+  outcome: string;
+  /** 'open' for live in-flight positions, 'closed' for finished ones. */
+  status?: "open" | "closed";
+  entry?: number;
+  stop_loss?: number;
+  tp1?: number;
+  tp2?: number | null;
+  rr?: number;
+  risk_usd?: number | null;
+  position_size?: number | null;
+  ret_pct: number | null;
+  pnl?: number | null;
+  strategy?: "S3" | "S5";
+  hold_days?: number;
+  when_ago: string;
+  entry_time: string;
+  exit_time?: string | null;
+  exit_price?: number | null;
+  exit_reason?: string | null;
+}
+
+export interface V22ScannerHeartbeat {
+  last_scan_at: string | null;
+  last_exit_check: string | null;
+  last_signal_at: string | null;
+  open_count: number | null;
+  /** true once the scanner has completed at least one full scan in production. */
+  live: boolean;
+}
+
+export interface V22Stats {
+  live_since: string;
+  cum_return_pct: number;
+  ytd_return_pct: number;
+  win_rate_pct: number;
+  sharpe: number;
+  avg_r: number;
+  total_trades: number;
+  equity_curve: [number, number][];
+  year_breakdown: V22YearRow[];
+  recent_wins: V22RecentWin[];
+  recent_calls: V22RecentCall[];
+  btc_hodl_pct_same_period: number;
+  scanner?: V22ScannerHeartbeat;
+}
+
+export async function apiGetV22Stats(): Promise<V22Stats> {
+  const res = await fetch(`${API_BASE}/api/v1/showcase/v22`);
+  if (!res.ok) {
+    throw new Error("Failed to fetch V22 stats");
+  }
+  return res.json() as Promise<V22Stats>;
+}
+
+// ── V22 History (comprehensive audit log w/ filters + pagination) ────────────
+
+export interface V22HistoryFilters {
+  /** "YYYY-MM-DD" */ start?: string;
+  /** "YYYY-MM-DD" */ end?: string;
+  /** Uppercase asset symbols, e.g. ["BTC","ETH"] — sent comma-joined to backend. */
+  symbols?: string[];
+  strategy?: "S3" | "S5";
+  direction?: "long" | "short";
+  outcome?: "win" | "loss" | "open";
+  limit?: number;
+  offset?: number;
+}
+
+export interface V22HistoryStats {
+  count: number;
+  win_rate_pct: number;
+  wins: number;
+  losses: number;
+  open: number;
+  total_pnl: number;
+  best_ret_pct: number | null;
+  worst_ret_pct: number | null;
+  first_date: string | null;
+  last_date: string | null;
+}
+
+export interface V22HistoryResponse {
+  trades: V22RecentCall[];
+  stats: V22HistoryStats;
+  filters: {
+    start: string | null;
+    end: string | null;
+    symbols: string[] | null;
+    strategy: string | null;
+    direction: string | null;
+    outcome: string | null;
+  };
+  pagination: {
+    total_count: number;
+    has_more: boolean;
+    limit: number;
+    offset: number;
+  };
+}
+
+export async function apiGetV22History(
+  filters: V22HistoryFilters = {},
+): Promise<V22HistoryResponse> {
+  const qs = new URLSearchParams();
+  if (filters.start) qs.set("start", filters.start);
+  if (filters.end) qs.set("end", filters.end);
+  if (filters.symbols && filters.symbols.length)
+    qs.set("symbols", filters.symbols.join(","));
+  if (filters.strategy) qs.set("strategy", filters.strategy);
+  if (filters.direction) qs.set("direction", filters.direction);
+  if (filters.outcome) qs.set("outcome", filters.outcome);
+  if (filters.limit != null) qs.set("limit", String(filters.limit));
+  if (filters.offset != null) qs.set("offset", String(filters.offset));
+  const url = `${API_BASE}/api/v1/showcase/v22/history?${qs.toString()}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch V22 history");
+  return res.json() as Promise<V22HistoryResponse>;
+}
+
+// ── Strategies (live list for Dashboard) ──────────────────────────────────────
+
+export interface Strategy {
+  id: string;
+  user_id: string;
+  name: string;
+  spec: Record<string, unknown>;
+  status: "draft" | "backtesting" | "ready" | "live" | "paused" | "archived";
+  source_prompt: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+export async function apiListStrategiesTyped(token: string): Promise<Strategy[]> {
+  return get<Strategy[]>("/api/v1/strategies", token);
+}
+
+// ── Telegram linking (for V22 signal alerts) ──────────────────────────────────
+
+export interface TelegramStatus {
+  is_linked: boolean;
+  enabled: boolean;
+  telegram_handle: string | null;
+  verified_at: string | null;
+  last_sent_at: string | null;
+  bot_username: string | null;
+  signal_min_tier: "free" | "explorer" | "trader" | "pro" | "auto";
+}
+
+export interface TelegramLink {
+  url: string;
+  token: string;
+  expires_at: string;
+}
+
+export async function apiGetTelegramStatus(token: string): Promise<TelegramStatus> {
+  return get<TelegramStatus>("/api/v1/telegram/status", token);
+}
+
+export async function apiCreateTelegramLink(token: string): Promise<TelegramLink> {
+  return post<TelegramLink>("/api/v1/telegram/link", {}, { Authorization: `Bearer ${token}` });
+}
+
+export async function apiSetTelegramPaused(token: string, enabled: boolean): Promise<{ enabled: boolean }> {
+  const res = await fetch(`${API_BASE}/api/v1/telegram/pause`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) throw new Error("Failed to update Telegram preferences");
+  return res.json() as Promise<{ enabled: boolean }>;
+}
+
+export async function apiUnlinkTelegram(token: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/telegram/unlink`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok && res.status !== 204) throw new Error("Failed to unlink Telegram");
+}

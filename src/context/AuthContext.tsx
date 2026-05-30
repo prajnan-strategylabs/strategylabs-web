@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase, supabaseReady } from "../lib/supabase";
+import { clearWaitlistCache } from "../lib/useWaitlistStatus";
 
 export type UserTier = "free" | "explorer" | "trader" | "pro" | "auto";
 
@@ -13,6 +14,11 @@ export interface AppUser {
 interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
+  /** True once we've either confirmed the user's tier from `profiles` or
+   *  hydrated it from localStorage. Until this is true, gated pages should
+   *  show a placeholder rather than committing to render either the gate
+   *  or the real content. */
+  tierResolved: boolean;
   isSandbox: boolean;
   signIn: (email: string) => Promise<{ error: Error | null }>;
   verifyOtp: (email: string, token: string) => Promise<{ error: Error | null }>;
@@ -22,12 +28,51 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/* ────────────────────────────────────────────────────────────────────────
+   Tier cache (localStorage)
+   Keyed by user_id so multi-account sessions stay isolated. Lets returning
+   users hydrate with their real tier on first paint — no "free" flash.
+   ──────────────────────────────────────────────────────────────────────── */
+const TIER_CACHE_KEY = (uid: string) => `sl_tier_${uid}`;
+function readCachedTier(uid: string): UserTier | null {
+  try {
+    const raw = window.localStorage.getItem(TIER_CACHE_KEY(uid));
+    if (!raw) return null;
+    if (raw === "free" || raw === "explorer" || raw === "trader" || raw === "pro" || raw === "auto") {
+      return raw;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+function writeCachedTier(uid: string, tier: UserTier): void {
+  try {
+    window.localStorage.setItem(TIER_CACHE_KEY(uid), tier);
+  } catch {
+    /* private mode / quota — fine to skip */
+  }
+}
+function clearAllTierCache(): void {
+  try {
+    const toClear: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k && k.startsWith("sl_tier_")) toClear.push(k);
+    }
+    toClear.forEach((k) => window.localStorage.removeItem(k));
+  } catch {
+    /* ignore */
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tierResolved, setTierResolved] = useState(false);
   const [isSandbox, setIsSandbox] = useState(false);
 
-  // Helper to fetch user tier from profile table
+  // Helper to fetch user tier from profile table. Writes to cache on success.
   const fetchUserTier = async (userId: string, email: string): Promise<AppUser> => {
     try {
       if (supabaseReady && supabase) {
@@ -38,7 +83,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single();
 
         if (!error && data) {
-          return { id: userId, email, tier: data.tier as UserTier };
+          const tier = data.tier as UserTier;
+          writeCachedTier(userId, tier);
+          return { id: userId, email, tier };
         }
       }
     } catch {
@@ -74,22 +121,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         tier: "free", // Default to Free tier
       });
       setLoading(false);
+      setTierResolved(true);
       return;
     }
+
+    // Helper: hydrate the user state with the best tier we know about — cached
+    // first (so returning users skip the optimistic "free" flash), then fall
+    // back to "free" for first-timers. Either way, always trigger a background
+    // refresh from the profiles table so the cache stays accurate.
+    const hydrateFromSession = (sessionUser: { id: string; email?: string | null }) => {
+      const uid = sessionUser.id;
+      const email = sessionUser.email || "";
+      const cachedTier = readCachedTier(uid);
+      if (cachedTier) {
+        // Returning user — render with the real tier immediately
+        setUser({ id: uid, email, tier: cachedTier });
+        setTierResolved(true);
+      } else {
+        // First-time on this device — fall back to "free", keep tierResolved
+        // false so gated pages show a placeholder until the real fetch returns
+        setUser({ id: uid, email, tier: "free" });
+        setTierResolved(false);
+      }
+      setLoading(false);
+      void fetchUserTier(uid, email).then((appUser) => {
+        setUser(appUser);
+        setTierResolved(true);
+      });
+    };
 
     // Set up real Supabase auth state change listener
     const getSession = async () => {
       const { data: { session } } = await supabase!.auth.getSession();
       if (session?.user) {
-        // Optimistic set + background tier fetch (same pattern as the listener)
-        setUser({ id: session.user.id, email: session.user.email || "", tier: "free" });
-        setLoading(false);
-        void fetchUserTier(session.user.id, session.user.email || "").then((appUser) => {
-          setUser(appUser);
-        });
+        hydrateFromSession(session.user);
       } else {
         setUser(null);
         setLoading(false);
+        setTierResolved(true); // no user → nothing to resolve
       }
     };
 
@@ -100,16 +169,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Supabase JS awaits its subscribers, so a slow callback (e.g. a stalled
       // `profiles` query) deadlocks setSession / verifyOtp.
       if (session?.user) {
-        // Optimistically set the user from session data — fetchUserTier runs
-        // in the background to upgrade the tier from "free" once profiles loads.
-        setUser({ id: session.user.id, email: session.user.email || "", tier: "free" });
-        setLoading(false);
-        void fetchUserTier(session.user.id, session.user.email || "").then((appUser) => {
-          setUser(appUser);
-        });
+        hydrateFromSession(session.user);
       } else {
         setUser(null);
         setLoading(false);
+        setTierResolved(true);
       }
     });
 
@@ -189,6 +253,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    // Drop cached SWR state so the next signed-in user doesn't inherit it
+    clearWaitlistCache();
+    clearAllTierCache();
     if (isSandbox) {
       setUser(null);
       return;
@@ -207,7 +274,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isSandbox, signIn, verifyOtp, signOut, updateSandboxTier }}>
+    <AuthContext.Provider value={{ user, loading, tierResolved, isSandbox, signIn, verifyOtp, signOut, updateSandboxTier }}>
       {children}
     </AuthContext.Provider>
   );
