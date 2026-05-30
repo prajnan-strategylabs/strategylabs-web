@@ -107,7 +107,7 @@ export function Hero() {
               </div>
             </div>
           ) : submitted ? (
-            <div className="card flex flex-col gap-4 border-accent/30 bg-accent/5">
+          <div className="card flex flex-col gap-4 border-accent/30 bg-accent/5">
               <div className="flex items-start gap-3">
                 <CheckCircle2 className="h-6 w-6 flex-none text-accent mt-0.5" />
                 <div>
@@ -117,15 +117,21 @@ export function Hero() {
                       : "You're on the list."}
                   </div>
                   <div className="text-xs text-ink-muted mt-1 leading-relaxed">
-                    {status.kind === "success" && status.alreadyMember
-                      ? "We'll email you the moment beta opens. You can also explore the sandbox dashboard now!"
-                      : "Thanks — we'll email you when beta opens. Explore the sandbox dashboard now!"}
+                    {isLaunched
+                      ? (status.kind === "success" && status.alreadyMember
+                          ? "We'll email you the moment beta opens. You can also explore the sandbox dashboard now!"
+                          : "Thanks — we'll email you when beta opens. Explore the sandbox dashboard now!")
+                      : (status.kind === "success" && status.alreadyMember
+                          ? "We already have your email. We'll notify you the moment beta launches!"
+                          : "Thanks for joining! We'll email you the moment beta launches.")}
                   </div>
                 </div>
               </div>
-              <Link to="/login" className="btn-primary py-2.5 text-xs w-full shadow-md shadow-accent/20">
-                Launch Sandbox Dashboard
-              </Link>
+              {isLaunched && (
+                <Link to="/login" className="btn-primary py-2.5 text-xs w-full shadow-md shadow-accent/20">
+                  Launch Sandbox Dashboard
+                </Link>
+              )}
             </div>
           ) : (
             <>
