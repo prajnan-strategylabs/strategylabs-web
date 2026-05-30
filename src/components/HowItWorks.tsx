@@ -30,8 +30,8 @@ export function HowItWorks() {
   const [optimizingProgress, setOptimizingProgress] = useState<number>(0);
   const [optimizerLogs, setOptimizerLogs] = useState<string[]>([]);
   
-  const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const backtestIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const backtestIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Typewriter effect for templates
   function handleSelectTemplate(idx: number) {
