@@ -10,7 +10,6 @@ import {
   Plus,
   Download,
   Loader2,
-  TrendingUp,
   FileSpreadsheet
 } from "lucide-react";
 
@@ -184,9 +183,6 @@ export function AdminDashboard() {
               <div className="px-6 pb-6 z-10 flex items-baseline gap-2 mt-4">
                 <span className="text-3xl font-black text-ink tracking-tight font-sans">
                   {card.value}
-                </span>
-                <span className="text-[10px] font-bold text-emerald-500 flex items-center font-mono">
-                  <TrendingUp className="h-3 w-3 mr-0.5" /> +100%
                 </span>
               </div>
             </div>
