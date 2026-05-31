@@ -25,6 +25,7 @@ interface AuthContextType {
   verifyOtp: (email: string, token: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updateSandboxTier: (tier: UserTier) => void;
+  updateDisplayName: (displayName: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -103,22 +104,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [user?.id, isSandbox]);
-
-  // Helper to fetch user tier from profile table. Writes to cache on success.
+  }, [user?.id, isSandbox]);  // Helper to fetch user tier and display_name from profile table. Writes to cache on success.
   const fetchUserTier = async (userId: string, email: string): Promise<AppUser> => {
     try {
       if (supabaseReady && supabase) {
         const { data, error } = await supabase
           .from("profiles")
-          .select("tier")
+          .select("tier, display_name")
           .eq("id", userId)
           .single();
 
         if (!error && data) {
           const tier = data.tier as UserTier;
+          const display_name = data.display_name || undefined;
           writeCachedTier(userId, tier);
-          return { id: userId, email, tier };
+          if (display_name) {
+            window.localStorage.setItem(`sl_name_${userId}`, display_name);
+          } else {
+            window.localStorage.removeItem(`sl_name_${userId}`);
+          }
+          return { id: userId, email, tier, display_name };
         }
       }
     } catch {
@@ -128,7 +133,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Check if the URL hash contains a Supabase auth error
     if (window.location.hash) {
       const hashParams = new URLSearchParams(window.location.hash.slice(1));
       const errorCode = hashParams.get("error_code");
@@ -166,14 +170,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const uid = sessionUser.id;
       const email = sessionUser.email || "";
       const cachedTier = readCachedTier(uid);
+      const cachedName = window.localStorage.getItem(`sl_name_${uid}`) || undefined;
       if (cachedTier) {
         // Returning user — render with the real tier immediately
-        setUser({ id: uid, email, tier: cachedTier });
+        setUser({ id: uid, email, tier: cachedTier, display_name: cachedName });
         setTierResolved(true);
       } else {
         // First-time on this device — fall back to "free", keep tierResolved
         // false so gated pages show a placeholder until the real fetch returns
-        setUser({ id: uid, email, tier: "free" });
+        setUser({ id: uid, email, tier: "free", display_name: cachedName });
         setTierResolved(false);
       }
       setLoading(false);
@@ -306,8 +311,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateDisplayName = (displayName: string) => {
+    if (user) {
+      setUser({ ...user, display_name: displayName });
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, tierResolved, isSandbox, signIn, verifyOtp, signOut, updateSandboxTier }}>
+    <AuthContext.Provider value={{ user, loading, tierResolved, isSandbox, signIn, verifyOtp, signOut, updateSandboxTier, updateDisplayName }}>
       {children}
     </AuthContext.Provider>
   );

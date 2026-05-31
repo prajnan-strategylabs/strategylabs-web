@@ -53,6 +53,7 @@ export function Footer() {
           <FooterColumn title="Resources">
             <FooterLink href="/blog">Blog</FooterLink>
             <FooterLink href="/disclosures">Risk disclosures</FooterLink>
+            <FooterLink href="/privacy">Privacy policy</FooterLink>
           </FooterColumn>
 
           {/* Connect */}

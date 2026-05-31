@@ -2,9 +2,19 @@ import { useState, useEffect } from "react";
 import { LogoMark } from "./Logo";
 import { Link } from "react-router-dom";
 import { apiGetConfig } from "../lib/api";
+import { Capacitor } from "@capacitor/core";
 
 export function Header() {
   const [isLaunched, setIsLaunched] = useState(false);
+
+  const isAndroid = Capacitor.getPlatform() === "android";
+  const isIOS = Capacitor.getPlatform() === "ios";
+
+  const topHeaderPadding = isAndroid
+    ? "calc(var(--safe-area-inset-top, 38px) + 12px)"
+    : isIOS
+      ? "calc(env(safe-area-inset-top, 44px) + 12px)"
+      : "0px";
 
   useEffect(() => {
     apiGetConfig().then((cfg) => {
@@ -13,7 +23,10 @@ export function Header() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line/50 bg-bg/80 backdrop-blur-md">
+    <header 
+      className="sticky top-0 z-50 border-b border-line/50 bg-bg/80 backdrop-blur-md"
+      style={{ paddingTop: topHeaderPadding }}
+    >
       <div className="container-app flex h-16 items-center justify-between">
         <a href="/" className="flex items-center gap-2.5 group">
           <LogoMark size={32} className="text-accent transition-transform group-hover:scale-110" />
@@ -28,9 +41,9 @@ export function Header() {
           <a href="/#pricing" className="text-sm text-ink-muted hover:text-ink transition-colors">Pricing</a>
         </nav>
 
-        {isLaunched ? (
+        {(isLaunched || Capacitor.isNativePlatform()) ? (
           <Link to="/login" className="btn-primary text-sm py-2 px-4 shadow-md shadow-accent/25">
-            Launch App
+            {Capacitor.isNativePlatform() ? "Sign In" : "Launch App"}
           </Link>
         ) : (
           <a href="#waitlist" className="btn-primary text-sm py-2 px-4 shadow-md shadow-accent/25">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { API_BASE } from "../lib/api";
+import { API_BASE, customFetch } from "../lib/api";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -170,12 +170,11 @@ export function Blog() {
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-
   // Fetch blogs from backend, fallback to pre-seeded list
   useEffect(() => {
     async function loadBlogs() {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/blogs`);
+        const res = await customFetch(`${API_BASE}/api/v1/blogs`);
         if (res.ok) {
           const data = await res.json();
           if (data && data.length > 0) {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { customFetch } from "./api";
 
 export interface LiveTick {
   /** Latest trade price. `null` until the first WS message lands. */
@@ -13,7 +14,7 @@ export interface LiveTick {
 async function fetchBinancePrice(symbol: string): Promise<number | null> {
   try {
     const binSym = symbol.replace("/", "");
-    const res = await fetch(
+    const res = await customFetch(
       `https://api.binance.com/api/v3/ticker/price?symbol=${binSym}`,
     );
     if (!res.ok) return null;

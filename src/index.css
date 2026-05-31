@@ -89,3 +89,34 @@
 
 /* Tabular numerics helper used pervasively */
 .tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* ── Native App Shell UX Enhancements ── */
+html.is-native,
+body.is-native {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none !important;
+  overscroll-behavior-y: none !important;
+  overscroll-behavior-x: none !important;
+}
+
+/* Allow text inputs and designated content blocks to be selectable */
+body.is-native input,
+body.is-native textarea,
+body.is-native [contenteditable="true"],
+body.is-native .selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Hide scrollbars inside Capacitor to maintain clean native feel */
+body.is-native::-webkit-scrollbar,
+body.is-native *::-webkit-scrollbar {
+  display: none !important;
+}
+body.is-native,
+body.is-native * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+}

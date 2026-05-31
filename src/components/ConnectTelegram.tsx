@@ -107,7 +107,8 @@ export function ConnectTelegram() {
   }
 
   const userTier = user.tier;
-  const minTier = status?.signal_min_tier ?? "explorer";
+  const rawMinTier = status?.signal_min_tier ?? "trader";
+  const minTier = rawMinTier === "explorer" ? "trader" : rawMinTier;
   const hasAccess = tierAtLeast(userTier, minTier);
   const linked = !!status?.is_linked;
   const enabled = !!status?.enabled;

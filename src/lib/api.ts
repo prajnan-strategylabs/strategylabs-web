@@ -3,8 +3,80 @@
  * All DB operations go through the FastAPI backend (not Supabase directly).
  */
 
+import { Capacitor, CapacitorHttp } from "@capacitor/core";
+
 export const API_BASE =
   (import.meta.env.VITE_API_URL as string | undefined) || "http://localhost:8080";
+
+export async function customFetch(
+  url: string,
+  options: {
+    method?: string;
+    headers?: Record<string, string> | HeadersInit;
+    body?: any;
+  } = {}
+): Promise<Response> {
+  const isFormData = options.body instanceof FormData;
+
+  if (Capacitor.isNativePlatform() && !isFormData) {
+    const reqHeaders: Record<string, string> = {};
+    if (options.headers) {
+      if (options.headers instanceof Headers) {
+        options.headers.forEach((value, key) => {
+          reqHeaders[key] = value;
+        });
+      } else if (Array.isArray(options.headers)) {
+        options.headers.forEach(([key, value]) => {
+          reqHeaders[key] = value;
+        });
+      } else {
+        Object.entries(options.headers).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            reqHeaders[key] = String(value);
+          }
+        });
+      }
+    }
+
+    const method = options.method || "GET";
+    let data = options.body;
+    if (typeof data === "string") {
+      try {
+        data = JSON.parse(data);
+      } catch {
+        // Keep as string
+      }
+    }
+
+    try {
+      const nativeRes = await CapacitorHttp.request({
+        url,
+        method,
+        headers: reqHeaders,
+        data,
+      });
+
+      const responseBody = typeof nativeRes.data === "object"
+        ? JSON.stringify(nativeRes.data)
+        : String(nativeRes.data);
+
+      return new Response(responseBody, {
+        status: nativeRes.status,
+        statusText: nativeRes.status >= 200 && nativeRes.status < 300 ? "OK" : "Error",
+        headers: new Headers(nativeRes.headers as Record<string, string>),
+      });
+    } catch (err) {
+      console.error("[CapacitorHttp Error]", err);
+      throw err;
+    }
+  }
+
+  return window.fetch(url, options as RequestInit);
+}
+
+// Shadow global fetch inside this file's lexical scope
+const fetch = customFetch;
+
 
 async function post<T>(path: string, body: unknown, headers?: HeadersInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {

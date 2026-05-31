@@ -16,6 +16,7 @@ import { LiveSignalDrawer } from "../components/LiveSignalDrawer";
 import { HistoryDrawer } from "../components/HistoryDrawer";
 import { useBinanceTradeStreams } from "../lib/useBinanceStreams";
 import { useAuth } from "../context/AuthContext";
+import { getSubscriptionOfferings, presentPaywall, type RCProductOfferings } from "../lib/purchases";
 
 // Modular Sub-components Imports
 import { ScannerHeartbeat } from "./signals/ScannerHeartbeat";
@@ -153,7 +154,66 @@ function SignalsBody() {
   );
   const liveTicks = useBinanceTradeStreams(openSymbols);
 
-  const selectedPlan = PLANS.find((p) => p.id === plan)!;
+  const [rcOfferings, setRcOfferings] = useState<RCProductOfferings | null>(null);
+
+  useEffect(() => {
+    async function loadOfferings() {
+      try {
+        const offs = await getSubscriptionOfferings();
+        setRcOfferings(offs);
+      } catch (e) {
+        console.error("Failed to load RevenueCat offerings", e);
+      }
+    }
+    loadOfferings();
+  }, []);
+
+  const dynamicPlans = useMemo(() => {
+    return PLANS.map((p) => {
+      if (!rcOfferings?.rawOfferings?.current) return p;
+      const currentOffering = rcOfferings.rawOfferings.current;
+      
+      let pkg: any = null;
+      if (p.id === "trader") {
+        pkg = currentOffering.monthly || currentOffering.annual || null;
+      } else if (p.id === "auto") {
+        pkg = currentOffering.availablePackages?.find((pkg: any) => 
+          pkg.identifier.toLowerCase().includes("auto") || 
+          pkg.product.identifier.toLowerCase().includes("auto")
+        ) || null;
+      }
+
+      if (pkg && pkg.product) {
+        return {
+          ...p,
+          price: pkg.product.priceString,
+          monthly: pkg.product.price,
+        };
+      }
+      return p;
+    });
+  }, [rcOfferings]);
+
+  const selectedPlan = dynamicPlans.find((p) => p.id === plan)!;
+
+  const handleCtaClick = async () => {
+    const isCurrent = selectedPlan.id === currentTier;
+    if (isCurrent) return;
+
+    if (selectedPlan.id === "free") {
+      alert("To manage or cancel your active subscription, please use the settings in your profile menu or system subscription settings.");
+      return;
+    }
+
+    try {
+      const purchased = await presentPaywall(selectedPlan.id);
+      if (purchased) {
+        window.location.reload();
+      }
+    } catch (e) {
+      console.error("Paywall error", e);
+    }
+  };
   const liveSinceLabel = useMemo(() => {
     if (!data?.live_since) return "";
     try {
@@ -342,33 +402,40 @@ function SignalsBody() {
           </section>
 
           <section>
-            <div className="flex items-end justify-between mb-2 gap-2">
-              <div className="min-w-0">
-                <h2 className="text-[13px] font-bold tracking-tight flex items-center gap-1.5">
-                  <LiveDot size={5} /> Live calls
-                </h2>
-                <div className="text-[10px] text-ink-muted truncate">
-                  Last 5 V22 entries · upgrade for the full feed
-                </div>
-              </div>
-              <ScannerHeartbeat scanner={data.scanner} />
-            </div>
-            <div className="space-y-2">
-              {data.recent_calls.length === 0 ? (
-                <div className="text-[11px] text-ink-subtle italic px-1">
-                  Scanner warming up — first V22 cycle in progress…
-                </div>
-              ) : (
-                data.recent_calls.map((c, i) => (
-                  <LiveCallRow
-                    key={c.id ?? i}
-                    call={c}
-                    tick={c.symbol ? liveTicks[c.symbol] : undefined}
-                    onSelect={() => setSelectedCall(c)}
-                  />
-                ))
-              )}
-            </div>
+            {(() => {
+              const closedCalls = data.recent_calls.filter((c) => c.status !== "open");
+              return (
+                <>
+                  <div className="flex items-end justify-between mb-2 gap-2">
+                    <div className="min-w-0">
+                      <h2 className="text-[13px] font-bold tracking-tight flex items-center gap-1.5">
+                        <LiveDot size={5} /> Live calls
+                      </h2>
+                      <div className="text-[10px] text-ink-muted truncate">
+                        Last {closedCalls.length} V22 entries · upgrade for the full feed
+                      </div>
+                    </div>
+                    <ScannerHeartbeat scanner={data.scanner} />
+                  </div>
+                  <div className="space-y-2">
+                    {closedCalls.length === 0 ? (
+                      <div className="text-[11px] text-ink-subtle italic px-1">
+                        Scanner warming up — first V22 cycle in progress…
+                      </div>
+                    ) : (
+                      closedCalls.map((c, i) => (
+                        <LiveCallRow
+                          key={c.id ?? i}
+                          call={c}
+                          tick={c.symbol ? liveTicks[c.symbol] : undefined}
+                          onSelect={() => setSelectedCall(c)}
+                        />
+                      ))
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </section>
           </>
           )}
@@ -387,7 +454,7 @@ function SignalsBody() {
               <span className="text-[10px] text-ink-subtle">Cancel anytime</span>
             </div>
             <div className="space-y-2">
-              {PLANS.map((p) => (
+              {dynamicPlans.map((p) => (
                 <PlanRow
                   key={p.id}
                   plan={p}
@@ -402,14 +469,15 @@ function SignalsBody() {
           {/* ── Sticky primary CTA — tier-aware ── */}
           {(() => {
             const isCurrent = selectedPlan.id === currentTier;
-            const currentRank = PLANS.findIndex((p) => p.id === currentTier);
-            const selectedRank = PLANS.findIndex((p) => p.id === selectedPlan.id);
+            const currentRank = dynamicPlans.findIndex((p) => p.id === currentTier);
+            const selectedRank = dynamicPlans.findIndex((p) => p.id === selectedPlan.id);
             const isUpgrade = selectedRank > currentRank;
             const isFreePlan = selectedPlan.id === "free";
 
             return (
               <button
                 disabled={isCurrent}
+                onClick={handleCtaClick}
                 className="w-full h-14 rounded-2xl font-extrabold text-[14px] flex items-center justify-center gap-2 active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{
                   background: isCurrent ? "var(--bg-elev)" : "var(--accent)",

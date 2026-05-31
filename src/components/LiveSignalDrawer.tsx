@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   TrendingUp,
@@ -40,7 +41,32 @@ function timeAgo(iso: string | null | undefined, now = Date.now()): string {
   }
 }
 
-export function LiveSignalDrawer({ call, onClose }: Props) {
+export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
+  const [localCall, setLocalCall] = useState<V22RecentCall | null>(null);
+  const [active, setActive] = useState(false);
+
+  // Synchronize localCall and active states with the parent's call prop
+  useEffect(() => {
+    if (propCall) {
+      setLocalCall(propCall);
+      const timer = setTimeout(() => setActive(true), 10);
+      return () => clearTimeout(timer);
+    } else if (localCall) {
+      setActive(false);
+      const timer = setTimeout(() => setLocalCall(null), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [propCall]);
+
+  const handleClose = () => {
+    setActive(false);
+    setTimeout(() => {
+      onClose();
+    }, 300);
+  };
+
+  const call = localCall;
+
   // Heartbeat to keep the "Xh running" label refreshing once a second
   const [clockTick, setClockTick] = useState(0);
 
@@ -82,11 +108,11 @@ export function LiveSignalDrawer({ call, onClose }: Props) {
   useEffect(() => {
     if (!call) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [call, onClose]);
+  }, [call]);
 
   // Derived metrics
   const derived = useMemo(() => {
@@ -203,15 +229,21 @@ export function LiveSignalDrawer({ call, onClose }: Props) {
     }
   })();
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-md animate-fade-in"
-      onClick={onClose}
+      className={`fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/60 backdrop-blur-md transition-opacity duration-300 ease-out ${
+        active ? "opacity-100" : "opacity-0 pointer-events-none"
+      }`}
+      onClick={handleClose}
     >
       <div
-        className="w-full md:max-w-lg rounded-t-3xl md:rounded-3xl border-t md:border bg-bg-card overflow-hidden animate-slide-up"
+        className={`w-full md:max-w-lg rounded-t-3xl md:rounded-3xl border-t md:border bg-bg-card overflow-hidden transition-all duration-300 ease-out ${
+          active
+            ? "translate-y-0 opacity-100 md:scale-100"
+            : "translate-y-full opacity-0 md:scale-95"
+        }`}
         style={{ borderColor: "var(--line)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -248,7 +280,7 @@ export function LiveSignalDrawer({ call, onClose }: Props) {
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Close"
             className="h-9 w-9 rounded-lg border border-line/60 bg-bg-elev/60 flex items-center justify-center text-ink-muted hover:text-ink active:scale-95 transition flex-none"
           >
@@ -450,7 +482,12 @@ export function LiveSignalDrawer({ call, onClose }: Props) {
         </div>
 
         {/* ── Footer / disclaimer ── */}
-        <div className="px-5 py-4 flex items-start gap-2 text-[10px] text-ink-subtle leading-relaxed">
+        <div 
+          className="px-5 pt-4 flex items-start gap-2 text-[10px] text-ink-subtle leading-relaxed border-t border-line/10 bg-bg/20"
+          style={{
+            paddingBottom: "calc(16px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)))"
+          }}
+        >
           <Zap className="h-3 w-3 flex-none mt-0.5" style={{ color: "var(--accent)" }} />
           <span>
             {isOpen
@@ -459,7 +496,8 @@ export function LiveSignalDrawer({ call, onClose }: Props) {
           </span>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

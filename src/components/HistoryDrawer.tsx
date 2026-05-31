@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   TrendingUp,
@@ -91,24 +92,46 @@ export function HistoryDrawer({
   onClose,
   onCallSelect,
 }: Props) {
+  const [localOpen, setLocalOpen] = useState(false);
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setLocalOpen(true);
+      const timer = setTimeout(() => setActive(true), 10);
+      return () => clearTimeout(timer);
+    } else if (localOpen) {
+      setActive(false);
+      const timer = setTimeout(() => setLocalOpen(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
+  const handleClose = () => {
+    setActive(false);
+    setTimeout(() => {
+      onClose();
+    }, 300);
+  };
+
   // ── Drawer lifecycle ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (!open) return;
+    if (!localOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [open]);
+  }, [localOpen]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!localOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [localOpen]);
 
   // ── Filter state + paged result ─────────────────────────────────────────
   const [filters, setFilters] = useState<DrawerFilters>(DEFAULT_FILTERS);
@@ -122,7 +145,7 @@ export function HistoryDrawer({
 
   // Refetch from offset=0 whenever filters change (including the debounced text)
   useEffect(() => {
-    if (!open) return;
+    if (!localOpen) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -142,7 +165,7 @@ export function HistoryDrawer({
     return () => {
       cancelled = true;
     };
-  }, [open, debouncedFilters]);
+  }, [localOpen, debouncedFilters]);
 
   async function loadMore() {
     if (!result || loading) return;
@@ -171,17 +194,23 @@ export function HistoryDrawer({
     );
   }, [filters]);
 
-  if (!open) return null;
+  if (!localOpen) return null;
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-md animate-fade-in"
-      onClick={onClose}
+      className={`fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/60 backdrop-blur-md transition-opacity duration-300 ease-out ${
+        active ? "opacity-100" : "opacity-0 pointer-events-none"
+      }`}
+      onClick={handleClose}
     >
       <div
-        className="w-full md:max-w-2xl rounded-t-3xl md:rounded-3xl border-t md:border bg-bg-card overflow-hidden animate-slide-up flex flex-col"
+        className={`w-full md:max-w-2xl rounded-t-3xl md:rounded-3xl border-t md:border bg-bg-card overflow-hidden transition-all duration-300 ease-out flex flex-col ${
+          active
+            ? "translate-y-0 opacity-100 md:scale-100"
+            : "translate-y-full opacity-0 md:scale-95"
+        }`}
         style={{ borderColor: "var(--line)", maxHeight: "92vh" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -196,7 +225,7 @@ export function HistoryDrawer({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Close"
             className="h-9 w-9 rounded-lg border border-line/60 bg-bg-elev/60 flex items-center justify-center text-ink-muted hover:text-ink active:scale-95 transition flex-none"
           >
@@ -336,7 +365,12 @@ export function HistoryDrawer({
         )}
 
         {/* ── Scrollable list ── */}
-        <div className="flex-1 overflow-y-auto px-5 py-3">
+        <div 
+          className="flex-1 overflow-y-auto px-5 pt-3"
+          style={{
+            paddingBottom: "calc(20px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)))"
+          }}
+        >
           {loading && page.length === 0 ? (
             <SkeletonRows />
           ) : error ? (
@@ -376,7 +410,8 @@ export function HistoryDrawer({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

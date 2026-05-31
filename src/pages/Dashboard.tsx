@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
 import {
@@ -138,15 +139,74 @@ function DashboardHome({
   limit: number;
   onOpen: (id: string) => void;
 }) {
-  const { user } = useAuth();
+  const { user, updateDisplayName } = useAuth();
   const now = new Date();
   const dayName = now.toLocaleDateString(undefined, { weekday: "long" });
   const timeStr = now.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
-  const firstName = (user?.email?.split("@")[0] ?? "trader").split(/[._-]/)[0];
-  const greet = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+  
+  const greet = user?.display_name || "Trader";
+
+  const [traderName, setTraderName] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [savingName, setSavingName] = useState(false);
+  const [isDrawerAnimating, setIsDrawerAnimating] = useState(false);
+
+  useEffect(() => {
+    if (!user?.display_name) {
+      const timer = setTimeout(() => setIsDrawerAnimating(true), 50);
+      return () => clearTimeout(timer);
+    } else {
+      setIsDrawerAnimating(false);
+    }
+  }, [user?.display_name]);
+
+  useEffect(() => {
+    if (!user?.display_name) {
+      document.body.classList.add("overflow-hidden");
+    } else {
+      document.body.classList.remove("overflow-hidden");
+    }
+    return () => {
+      document.body.classList.remove("overflow-hidden");
+    };
+  }, [user?.display_name]);
+
+  const handleSaveName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNameError(null);
+    const trimmed = traderName.trim();
+    if (trimmed.length < 2) {
+      setNameError("Name must be at least 2 characters.");
+      return;
+    }
+    if (trimmed.length > 20) {
+      setNameError("Name must be 20 characters or less.");
+      return;
+    }
+    if (!/^[a-zA-Z0-9 ]+$/.test(trimmed)) {
+      setNameError("Letters, numbers, and spaces only.");
+      return;
+    }
+    setSavingName(true);
+    try {
+      if (supabase) {
+        const { error: updateErr } = await supabase
+          .from("profiles")
+          .update({ display_name: trimmed })
+          .eq("id", user!.id);
+        if (updateErr) throw updateErr;
+      }
+      window.localStorage.setItem(`sl_name_${user!.id}`, trimmed);
+      updateDisplayName(trimmed);
+    } catch (err: any) {
+      setNameError(err.message || "Failed to update name.");
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   // Hero PnL = sum of user's strategy returns (NOT V22's). Ticks gently to
   // signal liveness even when the underlying data is static.
@@ -168,7 +228,7 @@ function DashboardHome({
 
   // Aggregated equity curve — overlay each strategy's normalized curve.
   const equity = useMemo(() => {
-    if (!rows || rows.length === 0) return genWalk(60, 7, 1.5, 0.2);
+    if (!rows || rows.length === 0) return Array(60).fill(100);
     const len = Math.min(...rows.map((r) => r.curve.length), 60);
     const blended: number[] = [];
     for (let i = 0; i < len; i++) {
@@ -216,7 +276,8 @@ function DashboardHome({
             {user?.tier ?? "free"}
           </div>
         </div>
-        <button
+        <Link
+          to="/notifications"
           aria-label="Notifications"
           className="h-10 w-10 rounded-full border border-line/80 bg-bg-card/60 flex items-center justify-center text-ink-muted hover:text-ink hover:border-line transition relative"
         >
@@ -225,8 +286,78 @@ function DashboardHome({
             className="absolute top-2 right-2.5 h-2 w-2 rounded-full"
             style={{ background: "var(--accent)" }}
           />
-        </button>
+        </Link>
       </header>
+
+      {/* ── Borderless Onboarding Drawer Bottom Sheet ── */}
+      {!user?.display_name && createPortal(
+        <div className="fixed inset-0 z-[100] flex flex-col justify-end">
+          {/* Backdrop Overlay */}
+          <div
+            className={`absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-300 ease-out ${
+              isDrawerAnimating ? "opacity-100" : "opacity-0"
+            }`}
+          />
+          
+          {/* Drawer Sheet */}
+          <div
+            className={`relative bg-[#0a0e1a] rounded-t-3xl border-t border-line/50 p-6 pb-8 space-y-6 transform transition-transform duration-300 ease-out select-none ${
+              isDrawerAnimating ? "translate-y-0" : "translate-y-full"
+            }`}
+          >
+            {/* Decorative Top Handle */}
+            <div className="w-12 h-1 bg-line/50 rounded-full mx-auto -mt-2 mb-4" />
+
+            {/* Personalized Wording */}
+            <div className="text-center space-y-3">
+              <div className="inline-flex rounded-full border border-accent/25 bg-accent/5 px-3 py-1 text-[9px] font-bold text-accent uppercase tracking-[0.2em] mx-auto">
+                Personalize Your Setup
+              </div>
+              <h2 className="text-2xl font-extrabold tracking-tight text-white leading-none">
+                What would be your trader name?
+              </h2>
+              <p className="text-[12px] text-ink-muted leading-relaxed max-w-xs mx-auto">
+                Welcome to Strategy Labs. Claim your trader name to personalize your greetings and display across your compiled backtest strategies.
+              </p>
+            </div>
+
+            {/* Input Form */}
+            <form onSubmit={handleSaveName} className="space-y-5">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={traderName}
+                  onChange={(e) => setTraderName(e.target.value)}
+                  placeholder="Enter your trader name..."
+                  className="w-full text-center border-none bg-bg-elev/40 rounded-2xl px-4 py-4 focus:ring-1 focus:ring-accent/40 outline-none text-lg font-bold text-white placeholder:text-ink-subtle/70 select-text"
+                  maxLength={20}
+                  disabled={savingName}
+                  autoFocus
+                />
+              </div>
+
+              {nameError && (
+                <div className="text-[11px] font-bold text-red-400 flex items-center justify-center gap-1.5 animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400" /> {nameError}
+                </div>
+              )}
+
+              {/* Glowing Activate Button */}
+              <button
+                type="submit"
+                disabled={savingName || !traderName.trim()}
+                className="w-full h-13 rounded-2xl bg-accent text-bg font-extrabold text-[14px] uppercase tracking-wider flex items-center justify-center gap-2 transition active:scale-[0.99] disabled:opacity-50 disabled:scale-100 disabled:shadow-none"
+                style={{
+                  boxShadow: "0 8px 24px rgba(34, 211, 170, 0.15)",
+                }}
+              >
+                {savingName ? "Saving..." : "Save & Continue"}
+              </button>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {error && (
         <div
@@ -263,8 +394,8 @@ function DashboardHome({
               </div>
               <div className="flex items-baseline gap-2 mt-1.5">
                 {isEmpty ? (
-                  <span className="text-[44px] font-extrabold tracking-tight text-ink-muted">
-                    —
+                  <span className="text-[44px] font-extrabold tracking-tight text-ink-muted tabular-nums">
+                    +0.0%
                   </span>
                 ) : (
                   <NumFlow
@@ -312,8 +443,15 @@ function DashboardHome({
             </div>
           </div>
 
-          <div className="mt-4 -mx-2">
+          <div className="mt-4 -mx-2 relative">
             <EquityCurve data={equity} height={90} animated />
+            {isEmpty && (
+              <div className="absolute inset-0 flex items-center justify-center bg-bg-card/40 backdrop-blur-[1.5px] rounded-lg">
+                <span className="text-[10px] md:text-[11px] font-bold text-ink-muted/95 bg-bg-elev/80 border border-line/65 rounded-full px-3 py-1.5 shadow-md">
+                  No active backtest data. Run a strategy in the Lab!
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-2 mt-3 text-center">

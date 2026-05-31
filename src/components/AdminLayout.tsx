@@ -3,6 +3,7 @@ import { Navigate, Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
 import { apiAdminCheck } from "../lib/api";
+import { Capacitor } from "@capacitor/core";
 import {
   LayoutDashboard,
   BookOpen,
@@ -23,6 +24,21 @@ export function AdminLayout() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [adminEmail, setAdminEmail] = useState<string>("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const isAndroid = Capacitor.getPlatform() === "android";
+  const isIOS = Capacitor.getPlatform() === "ios";
+
+  const topHeaderPadding = isAndroid
+    ? "calc(var(--safe-area-inset-top, 38px) + 16px)"
+    : isIOS
+      ? "calc(env(safe-area-inset-top, 44px) + 16px)"
+      : "16px";
+
+  const bottomNavOffset = isAndroid
+    ? "calc(var(--safe-area-inset-bottom, 16px) + 24px)"
+    : isIOS
+      ? "calc(env(safe-area-inset-bottom, 16px) + 24px)"
+      : "24px";
 
   useEffect(() => {
     let active = true;
@@ -172,7 +188,10 @@ export function AdminLayout() {
       </aside>
 
       {/* ── MOBILE HEADER & NAV ── */}
-      <header className="md:hidden flex items-center justify-between px-6 py-4 border-b border-[#1e2740] bg-bg-card/45 backdrop-blur-md z-40 relative">
+      <header 
+        className="md:hidden flex items-center justify-between px-6 py-4 border-b border-[#1e2740] bg-bg-card/45 backdrop-blur-md z-40 relative"
+        style={{ paddingTop: topHeaderPadding }}
+      >
         <LogoLockup />
         <div className="flex items-center gap-3">
           <span className="text-[9px] font-black uppercase font-mono px-1.5 py-0.5 bg-amber-500/10 text-amber-500 border border-amber-500/25 rounded tracking-wider">
@@ -189,7 +208,13 @@ export function AdminLayout() {
 
       {/* Mobile Drawer Overlay */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 top-[65px] bg-[#0a0e1a] z-30 flex flex-col justify-between p-6 animate-fade-in">
+        <div 
+          className="md:hidden fixed inset-x-0 bottom-0 bg-[#0a0e1a] z-30 flex flex-col justify-between p-6 animate-fade-in"
+          style={{ 
+            top: `calc(${topHeaderPadding} + 49px)`,
+            paddingBottom: bottomNavOffset
+          }}
+        >
           <nav className="space-y-2">
             {navItems.map((item) => {
               const active = checkActive(item.to, item.exact);

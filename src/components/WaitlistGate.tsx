@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useWaitlistStatus } from "../lib/useWaitlistStatus";
 import { useAppConfig } from "../lib/useAppConfig";
 import { joinWaitlist } from "../lib/waitlist";
+import { Capacitor } from "@capacitor/core";
 
 interface WaitlistGateProps {
   /** What to render when the user has cleared the waitlist gate (approved). */
@@ -25,8 +26,8 @@ export function WaitlistGate({ children, isApproved = defaultIsApproved }: Waitl
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
 
-  // Sandbox always sees the real dashboard
-  if (isSandbox) return <>{children}</>;
+  // Sandbox and native platforms always see the real dashboard (bypass waitlist)
+  if (isSandbox || Capacitor.isNativePlatform()) return <>{children}</>;
 
   // Already approved users (paid tier, or an admin-set flag) bypass the gate
   if (user && isApproved(user.tier)) return <>{children}</>;
