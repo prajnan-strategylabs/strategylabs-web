@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">StrategyLabs</string>
+    <string name="title_activity_main">StrategyLabs</string>
+    <string name="package_name">trade.strategylabs.app</string>
+    <string name="custom_url_scheme">trade.strategylabs.app</string>
+</resources>
