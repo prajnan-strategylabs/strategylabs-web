@@ -1,12 +1,38 @@
+import { useState, useEffect } from "react";
 import { Navigate, Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth, type UserTier } from "../context/AuthContext";
 import { LogoLockup } from "./Logo";
-import { LayoutDashboard, Beaker, Radio, LogOut, ShieldAlert, Search } from "lucide-react";
+import { LayoutDashboard, Beaker, Radio, LogOut, ShieldAlert, Search, Shield } from "lucide-react";
 import { LiveDot, Pill } from "./MobileUI";
+import { supabase } from "../lib/supabase";
+import { apiAdminCheck } from "../lib/api";
 
 export function AppLayout() {
   const { user, loading, tierResolved, signOut, isSandbox, updateSandboxTier } = useAuth();
   const location = useLocation();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    async function checkAdmin() {
+      if (!user) return;
+      try {
+        const sessionRes = await supabase!.auth.getSession();
+        const token = sessionRes.data.session?.access_token;
+        if (!token) return;
+        const res = await apiAdminCheck(token);
+        if (active && res.ok) {
+          setIsAdmin(true);
+        }
+      } catch {
+        // Silently fail for non-admins
+      }
+    }
+    checkAdmin();
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   // Hold the page in the loading state until we know:
   //   1. Whether there's a session at all (loading=false)
@@ -79,6 +105,20 @@ export function AppLayout() {
               </Link>
             );
           })}
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold transition-all mt-2 border border-transparent
+                         ${
+                           location.pathname.startsWith("/admin")
+                             ? "bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-md"
+                             : "text-ink-muted hover:bg-bg-elev hover:text-ink"
+                         }`}
+            >
+              <Shield className={`h-5 w-5 ${location.pathname.startsWith("/admin") ? "text-amber-500" : "text-ink-subtle"}`} />
+              Admin Panel
+            </Link>
+          )}
         </nav>
 
         {/* User Card at bottom of Sidebar */}
@@ -177,6 +217,28 @@ export function AppLayout() {
               </Link>
             );
           })}
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className="flex flex-col items-center justify-center w-16 active:scale-95 transition relative"
+            >
+              {location.pathname.startsWith("/admin") && (
+                <span
+                  className="absolute -top-1 h-1 w-6 rounded-full bg-amber-500"
+                />
+              )}
+              <Shield
+                className="h-5 w-5 transition"
+                style={{ color: location.pathname.startsWith("/admin") ? "#f59e0b" : "var(--ink-subtle)" }}
+              />
+              <span
+                className="text-[10px] font-bold mt-0.5 tracking-tight"
+                style={{ color: location.pathname.startsWith("/admin") ? "var(--ink)" : "var(--ink-subtle)" }}
+              >
+                Admin
+              </span>
+            </Link>
+          )}
         </div>
       </nav>
     </div>

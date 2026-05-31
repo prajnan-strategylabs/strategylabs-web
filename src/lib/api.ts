@@ -3,7 +3,7 @@
  * All DB operations go through the FastAPI backend (not Supabase directly).
  */
 
-const API_BASE =
+export const API_BASE =
   (import.meta.env.VITE_API_URL as string | undefined) || "http://localhost:8080";
 
 async function post<T>(path: string, body: unknown, headers?: HeadersInit): Promise<T> {
@@ -332,3 +332,133 @@ export async function apiUnlinkTelegram(token: string): Promise<void> {
   });
   if (!res.ok && res.status !== 204) throw new Error("Failed to unlink Telegram");
 }
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+
+export async function apiAdminCheck(token: string): Promise<{ ok: boolean; email: string }> {
+  return get<{ ok: boolean; email: string }>("/api/v1/admin/admin-check", token);
+}
+
+export async function apiAdminStats(token: string) {
+  return get<{ users: number; waitlist: number; blogs: number; strategies: number; signals: number }>("/api/v1/admin/stats", token);
+}
+
+export interface AdminBlogPost {
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  cover_image?: string | null;
+  cover_gradient: string;
+  read_time: string;
+  tags: string[];
+  status: "draft" | "published";
+  created_at: string;
+  updated_at?: string;
+}
+
+export async function apiAdminGetBlogs(token: string): Promise<AdminBlogPost[]> {
+  return get<AdminBlogPost[]>("/api/v1/admin/blogs", token);
+}
+
+export async function apiAdminCreateBlog(token: string, body: Record<string, unknown>) {
+  return post<{ ok: boolean; slug: string }>("/api/v1/admin/blogs", body, { Authorization: `Bearer ${token}` });
+}
+
+export async function apiAdminUpdateBlog(token: string, slug: string, body: Record<string, unknown>) {
+  const res = await fetch(`${API_BASE}/api/v1/admin/blogs/${slug}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) { const err = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(err.detail ?? "Update failed"); }
+  return res.json();
+}
+
+export async function apiAdminDeleteBlog(token: string, slug: string) {
+  const res = await fetch(`${API_BASE}/api/v1/admin/blogs/${slug}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Delete failed");
+  return res.json();
+}
+
+export async function apiAdminUploadImage(token: string, file: File): Promise<{ url: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}/api/v1/admin/blogs/upload-image`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error("Upload failed");
+  return res.json();
+}
+
+export interface AdminWaitlistEntry {
+  id?: number;
+  email: string;
+  source?: string;
+  referrer?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  created_at: string;
+}
+
+export async function apiAdminGetWaitlist(token: string, search?: string): Promise<AdminWaitlistEntry[]> {
+  const qs = search ? `?search=${encodeURIComponent(search)}` : "";
+  return get<AdminWaitlistEntry[]>(`/api/v1/admin/waitlist${qs}`, token);
+}
+
+export async function apiAdminExportWaitlist(token: string): Promise<Blob> {
+  const res = await fetch(`${API_BASE}/api/v1/admin/waitlist/export`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Export failed");
+  return res.blob();
+}
+
+export async function apiAdminDeleteWaitlistEntry(token: string, email: string) {
+  const res = await fetch(`${API_BASE}/api/v1/admin/waitlist/${encodeURIComponent(email)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Delete failed");
+  return res.json();
+}
+
+export interface AdminUserEntry {
+  id: string;
+  email: string;
+  created_at: string;
+  last_sign_in_at: string | null;
+  tier: string;
+}
+
+export async function apiAdminGetUsers(token: string): Promise<AdminUserEntry[]> {
+  return get<AdminUserEntry[]>("/api/v1/admin/users", token);
+}
+
+export async function apiAdminUpdateUserTier(token: string, userId: string, tier: string) {
+  const res = await fetch(`${API_BASE}/api/v1/admin/users/${userId}/tier`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ tier }),
+  });
+  if (!res.ok) throw new Error("Tier update failed");
+  return res.json();
+}
+
+export async function apiAdminGetConfig(token: string) {
+  return get<{ is_launched: boolean; waitlist_full: boolean; admin_enabled: boolean; v22_scanner_disabled: boolean }>("/api/v1/admin/config", token);
+}
+
+// ── Public Blog fetch (fix for Blog.tsx) ──────────────────────────────────────
+export async function apiGetBlogs() {
+  const res = await fetch(`${API_BASE}/api/v1/blogs`);
+  if (!res.ok) throw new Error("Failed to fetch blogs");
+  return res.json();
+}
+

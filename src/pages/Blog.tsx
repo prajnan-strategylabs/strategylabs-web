@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { API_BASE } from "../lib/api";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -48,6 +49,7 @@ interface BlogPost {
   slug: string;
   excerpt: string;
   content: string;
+  cover_image?: string | null;
   cover_gradient: string;
   read_time: string;
   tags: string[];
@@ -173,7 +175,7 @@ export function Blog() {
   useEffect(() => {
     async function loadBlogs() {
       try {
-        const res = await fetch("http://localhost:8080/api/v1/blogs");
+        const res = await fetch(`${API_BASE}/api/v1/blogs`);
         if (res.ok) {
           const data = await res.json();
           if (data && data.length > 0) {
@@ -231,17 +233,31 @@ export function Blog() {
                 onClick={() => setSelectedPost(post)}
                 className="card flex flex-col justify-between border-line/60 bg-bg-card/35 hover:bg-bg-card/65 hover:border-accent/40 backdrop-blur-sm cursor-pointer select-none transition-all duration-300 hover:scale-[1.015] group p-0 overflow-hidden"
               >
-                {/* Cover visual gradient */}
-                <div className={`h-40 bg-gradient-to-tr ${post.cover_gradient} border-b border-line/50 p-6 flex flex-col justify-between relative`}>
-                  <div className="flex flex-wrap gap-1.5 z-10">
-                    {post.tags.slice(0, 2).map((t) => (
-                      <span key={t} className="text-[8px] font-extrabold bg-bg/60 text-accent border border-accent/20 px-2 py-0.5 rounded-full font-mono uppercase tracking-wider">
-                        {t}
-                      </span>
-                    ))}
+                {/* Cover visual */}
+                {post.cover_image ? (
+                  <div className="h-40 border-b border-line/50 overflow-hidden relative">
+                    <img src={post.cover_image} alt={post.title} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-bg-card/85 to-transparent" />
+                    <div className="absolute top-4 left-4 flex flex-wrap gap-1.5 z-10">
+                      {post.tags.slice(0, 2).map((t) => (
+                        <span key={t} className="text-[8px] font-extrabold bg-bg/60 text-accent border border-accent/20 px-2 py-0.5 rounded-full font-mono uppercase tracking-wider">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <BookOpen className="h-8 w-8 text-accent/65 group-hover:text-accent transition-colors self-end z-10" />
-                </div>
+                ) : (
+                  <div className={`h-40 bg-gradient-to-tr ${post.cover_gradient} border-b border-line/50 p-6 flex flex-col justify-between relative`}>
+                    <div className="flex flex-wrap gap-1.5 z-10">
+                      {post.tags.slice(0, 2).map((t) => (
+                        <span key={t} className="text-[8px] font-extrabold bg-bg/60 text-accent border border-accent/20 px-2 py-0.5 rounded-full font-mono uppercase tracking-wider">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                    <BookOpen className="h-8 w-8 text-accent/65 group-hover:text-accent transition-colors self-end z-10" />
+                  </div>
+                )}
 
                 <div className="p-6 space-y-4 flex-grow flex flex-col justify-between">
                   <div className="space-y-2">
@@ -292,19 +308,38 @@ export function Blog() {
             {/* Scrollable markdown reader body */}
             <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6 scrollbar-thin">
               
-              {/* Header Gradient */}
-              <div className={`p-8 rounded-2xl bg-gradient-to-tr ${selectedPost.cover_gradient} border border-line/45 flex flex-col justify-end space-y-4`}>
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedPost.tags.map((t) => (
-                    <span key={t} className="text-[9px] font-extrabold bg-bg/80 text-accent border border-accent/20 px-2.5 py-0.5 rounded-full font-mono uppercase tracking-wider">
-                      {t}
-                    </span>
-                  ))}
+              {/* Header Visual */}
+              {selectedPost.cover_image ? (
+                <div className="rounded-2xl overflow-hidden border border-line/45 relative h-48 md:h-64">
+                  <img src={selectedPost.cover_image} alt={selectedPost.title} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-bg-card via-bg-card/30 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-8 space-y-4">
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedPost.tags.map((t) => (
+                        <span key={t} className="text-[9px] font-extrabold bg-bg/80 text-accent border border-accent/20 px-2.5 py-0.5 rounded-full font-mono uppercase tracking-wider">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                    <h2 className="text-xl md:text-2xl font-black text-ink leading-tight">
+                      {selectedPost.title}
+                    </h2>
+                  </div>
                 </div>
-                <h2 className="text-xl md:text-2xl font-black text-ink leading-tight">
-                  {selectedPost.title}
-                </h2>
-              </div>
+              ) : (
+                <div className={`p-8 rounded-2xl bg-gradient-to-tr ${selectedPost.cover_gradient} border border-line/45 flex flex-col justify-end space-y-4`}>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedPost.tags.map((t) => (
+                      <span key={t} className="text-[9px] font-extrabold bg-bg/80 text-accent border border-accent/20 px-2.5 py-0.5 rounded-full font-mono uppercase tracking-wider">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                  <h2 className="text-xl md:text-2xl font-black text-ink leading-tight">
+                    {selectedPost.title}
+                  </h2>
+                </div>
+              )}
 
               {/* Rendered post Markdown content */}
               <div className="text-xs md:text-sm leading-relaxed space-y-4 font-sans select-text">
