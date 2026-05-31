@@ -18,6 +18,7 @@ import {
 } from "../lib/api";
 import { LiveDot, Pill } from "./MobileUI";
 import type { LiveTick } from "../lib/useBinanceStreams";
+import { formatWhenAgo } from "../lib/utils";
 
 interface Props {
   open: boolean;
@@ -589,7 +590,7 @@ function TradeRow({
           )}
         </div>
         <div className="text-[10px] text-ink-subtle font-mono mt-0.5">
-          {call.entry_time?.slice(0, 10)} · {call.when_ago}
+          {call.entry_time?.slice(0, 10)} · {formatWhenAgo(call.entry_time) || call.when_ago}
         </div>
       </div>
       <div className="flex flex-col items-end flex-none gap-1">

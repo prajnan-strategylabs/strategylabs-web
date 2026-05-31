@@ -1,6 +1,7 @@
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { Pill } from "../../components/MobileUI";
 import type { V22RecentWin } from "../../lib/api";
+import { formatWhenAgo } from "../../lib/utils";
 
 export function RecentWinChip({ w }: { w: V22RecentWin }) {
   return (
@@ -25,7 +26,7 @@ export function RecentWinChip({ w }: { w: V22RecentWin }) {
         +{w.ret_pct}%
       </div>
       <div className="text-[10px] text-ink-subtle mt-0.5">
-        {w.hold_days}d hold · {w.when_ago}
+        {w.hold_days}d hold · {formatWhenAgo(w.entry_time) || w.when_ago}
       </div>
     </div>
   );

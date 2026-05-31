@@ -2,6 +2,7 @@ import { TrendingUp, TrendingDown } from "lucide-react";
 import { Pill, LiveDot } from "../../components/MobileUI";
 import type { V22Stats } from "../../lib/api";
 import type { LiveTick } from "../../lib/useBinanceStreams";
+import { formatWhenAgo } from "../../lib/utils";
 
 export function LiveCallRow({
   call,
@@ -123,8 +124,8 @@ export function LiveCallRow({
         </div>
         <div className="text-[10px] text-ink-subtle font-mono mt-0.5">
           {isOpen
-            ? `Entered ${call.when_ago} · ${holdLabel} running`
-            : `Entered ${call.when_ago} · held ${holdLabel}`}
+            ? `Entered ${formatWhenAgo(call.entry_time) || call.when_ago} · ${holdLabel} running`
+            : `Entered ${formatWhenAgo(call.entry_time) || call.when_ago} · held ${holdLabel}`}
         </div>
       </div>
       <div className="flex flex-col items-end flex-none gap-0.5 min-w-[80px]">
