@@ -386,40 +386,33 @@ function SignalsBody() {
           {!isPaid && (
           <>
           <section>
-            {(() => {
-              const closedCalls = data.recent_calls.filter((c) => c.status !== "open");
-              return (
-                <>
-                  <div className="flex items-end justify-between mb-2 gap-2">
-                    <div className="min-w-0">
-                      <h2 className="text-[13px] font-bold tracking-tight flex items-center gap-1.5">
-                        <LiveDot size={5} /> Live calls
-                      </h2>
-                      <div className="text-[10px] text-ink-muted truncate">
-                        Last {closedCalls.length} V22 entries · upgrade for the full feed
-                      </div>
-                    </div>
-                    <ScannerHeartbeat scanner={data.scanner} />
-                  </div>
-                  <div className="space-y-2">
-                    {closedCalls.length === 0 ? (
-                      <div className="text-[11px] text-ink-subtle italic px-1">
-                        Scanner warming up — first V22 cycle in progress…
-                      </div>
-                    ) : (
-                      closedCalls.map((c, i) => (
-                        <LiveCallRow
-                          key={c.id ?? i}
-                          call={c}
-                          tick={c.symbol ? liveTicks[c.symbol] : undefined}
-                          onSelect={() => setSelectedCall(c)}
-                        />
-                      ))
-                    )}
-                  </div>
-                </>
-              );
-            })()}
+            <div className="flex items-end justify-between mb-2 gap-2">
+              <div className="min-w-0">
+                <h2 className="text-[13px] font-bold tracking-tight flex items-center gap-1.5">
+                  <LiveDot size={5} /> Live calls
+                </h2>
+                <div className="text-[10px] text-ink-muted truncate">
+                  Last {data.recent_calls.length} V22 entries · upgrade for the full feed
+                </div>
+              </div>
+              <ScannerHeartbeat scanner={data.scanner} />
+            </div>
+            <div className="space-y-2">
+              {data.recent_calls.length === 0 ? (
+                <div className="text-[11px] text-ink-subtle italic px-1">
+                  Scanner warming up — first V22 cycle in progress…
+                </div>
+              ) : (
+                data.recent_calls.map((c, i) => (
+                  <LiveCallRow
+                    key={c.id ?? i}
+                    call={c}
+                    tick={c.symbol ? liveTicks[c.symbol] : undefined}
+                    onSelect={() => setSelectedCall(c)}
+                  />
+                ))
+              )}
+            </div>
           </section>
 
           <section className="rounded-2xl border border-line/60 bg-bg-card/30 p-4">
