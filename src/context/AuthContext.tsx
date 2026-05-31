@@ -83,18 +83,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // 2. Initial entitlement check
     void checkProEntitlement().then((hasPro) => {
-      if (hasPro && user.tier !== "pro") {
-        setUser((prev) => prev ? { ...prev, tier: "pro" } : null);
+      const targetTier = hasPro ? "pro" : user.tier === "pro" ? "free" : user.tier;
+      if (user.tier !== targetTier) {
+        setUser((prev) => prev ? { ...prev, tier: targetTier as UserTier } : null);
+        if (supabaseReady && supabase) {
+          void supabase
+            .from("profiles")
+            .update({ tier: targetTier })
+            .eq("id", user.id)
+            .then(({ error }) => {
+              if (!error) writeCachedTier(user.id, targetTier as UserTier);
+            });
+        }
       }
     });
 
     // 3. Register real-time CustomerInfo changes listener
     const unsubscribe = addSubscriptionListener((customerInfo) => {
       const hasPro = customerInfo.entitlements.active["StrategyLabs Pro"] !== undefined;
+      const targetTier = hasPro ? "pro" : user.tier === "pro" ? "free" : user.tier;
+      
       setUser((prev) => {
         if (!prev) return null;
-        const targetTier = hasPro ? "pro" : prev.tier === "pro" ? "free" : prev.tier;
         if (prev.tier !== targetTier) {
+          // Sync to Supabase database profiles table
+          if (supabaseReady && supabase) {
+            void supabase
+              .from("profiles")
+              .update({ tier: targetTier })
+              .eq("id", prev.id)
+              .then(({ error }) => {
+                if (error) {
+                  console.error("Failed to sync tier to Supabase profiles:", error);
+                } else {
+                  console.log("Successfully synced tier to Supabase profiles:", targetTier);
+                  writeCachedTier(prev.id, targetTier as UserTier);
+                }
+              });
+          }
           return { ...prev, tier: targetTier as UserTier };
         }
         return prev;
