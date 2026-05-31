@@ -11,6 +11,7 @@ import {
   type V22Stats,
 } from "../lib/api";
 import { EquityCurve, LiveDot, Pill } from "../components/MobileUI";
+import DigitRoller from "../components/DigitRoller";
 import { ConnectTelegram } from "../components/ConnectTelegram";
 import { LiveSignalDrawer } from "../components/LiveSignalDrawer";
 import { HistoryDrawer } from "../components/HistoryDrawer";
@@ -300,15 +301,15 @@ function SignalsBody() {
                 Cumulative return · since {liveSinceLabel}
               </div>
               <div className="flex items-baseline gap-2 mt-1.5">
-                <span
+                <DigitRoller
+                  value={`+${Math.round(data.cum_return_pct).toLocaleString()}%`}
+                  height={52}
                   className="text-[48px] font-extrabold tracking-tight tabular-nums leading-none"
                   style={{
                     color: "var(--accent)",
                     letterSpacing: "-0.03em",
                   }}
-                >
-                  +{Math.round(data.cum_return_pct).toLocaleString()}%
-                </span>
+                />
               </div>
               <div className="text-[11px] text-ink-muted mt-1">
                 <span className="font-bold" style={{ color: "var(--accent)" }}>
@@ -381,26 +382,9 @@ function SignalsBody() {
             </section>
           )}
 
-          {/* ── Track record + Live-calls feed — UPSELL only (paid users access via History drawer) ── */}
+          {/* ── Live-calls feed + Track record — UPSELL only (paid users access via History drawer) ── */}
           {!isPaid && (
           <>
-          <section className="rounded-2xl border border-line/60 bg-bg-card/30 p-4">
-            <div className="flex items-end justify-between mb-3">
-              <div>
-                <h2 className="text-[13px] font-bold tracking-tight">
-                  By the year
-                </h2>
-                <div className="text-[10px] text-ink-muted">
-                  Closed PnL · audited
-                </div>
-              </div>
-              <div className="text-[10px] font-mono text-ink-subtle tabular-nums">
-                {data.year_breakdown.length}y verified
-              </div>
-            </div>
-            <YearBars years={data.year_breakdown} animate={animYears} />
-          </section>
-
           <section>
             {(() => {
               const closedCalls = data.recent_calls.filter((c) => c.status !== "open");
@@ -436,6 +420,23 @@ function SignalsBody() {
                 </>
               );
             })()}
+          </section>
+
+          <section className="rounded-2xl border border-line/60 bg-bg-card/30 p-4">
+            <div className="flex items-end justify-between mb-3">
+              <div>
+                <h2 className="text-[13px] font-bold tracking-tight">
+                  By the year
+                </h2>
+                <div className="text-[10px] text-ink-muted">
+                  Closed PnL · audited
+                </div>
+              </div>
+              <div className="text-[10px] font-mono text-ink-subtle tabular-nums">
+                {data.year_breakdown.length}y verified
+              </div>
+            </div>
+            <YearBars years={data.year_breakdown} animate={animYears} />
           </section>
           </>
           )}
