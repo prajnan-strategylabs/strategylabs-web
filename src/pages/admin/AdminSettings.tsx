@@ -165,6 +165,38 @@ export function AdminSettings() {
         ))}
       </div>
 
+      {/* ── CLOUDFLARE R2 INTEGRATION CARD ── */}
+      <div className="card bg-bg-card/25 border-line/45 hover:border-line/75 p-6 space-y-4">
+        <h3 className="text-base font-extrabold text-ink leading-none flex items-center gap-2">
+          <span className="w-1.5 h-4 bg-amber-500 rounded-full" />
+          Cloudflare R2 Storage Integration
+        </h3>
+        <p className="text-xs text-ink-muted leading-relaxed font-sans">
+          To activate Cloudflare R2 S3-compatible storage for cover images, configure the following secrets on Fly.io. If these are not configured, the application will automatically fall back to Supabase Storage.
+        </p>
+
+        <div className="space-y-3 pt-2">
+          <span className="text-[9px] font-bold text-ink-subtle uppercase tracking-wider font-mono flex items-center gap-1.5">
+            <Terminal className="h-3.5 w-3.5 text-amber-500" />
+            Fly CLI Configuration Command
+          </span>
+          
+          <div className="flex items-center justify-between gap-4 bg-bg-elev/30 border border-line p-3 rounded-xl font-mono text-[10px] text-ink select-all overflow-x-auto scrollbar-thin">
+            <code className="whitespace-nowrap">
+              fly secrets set R2_ACCOUNT_ID="your_id" R2_ACCESS_KEY_ID="your_key" R2_SECRET_ACCESS_KEY="your_secret" R2_BUCKET_NAME="strategylabs-blogs" R2_PUBLIC_URL="https://your-r2-domain.com" -a strategylabs-api
+            </code>
+            
+            <button
+              onClick={() => handleCopy("CF_R2_CMD", 'fly secrets set R2_ACCOUNT_ID="your_id" R2_ACCESS_KEY_ID="your_key" R2_SECRET_ACCESS_KEY="your_secret" R2_BUCKET_NAME="strategylabs-blogs" R2_PUBLIC_URL="https://your-r2-domain.com" -a strategylabs-api')}
+              className="p-1.5 rounded-lg border border-line/60 bg-bg-card hover:bg-bg-elev hover:text-white transition-all text-ink-muted flex-none"
+              title="Copy command template"
+            >
+              {copiedKey === "CF_R2_CMD" ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* ── TOAST ── */}
       {toast && (
         <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl border backdrop-blur-md shadow-2xl animate-fade-in-up
