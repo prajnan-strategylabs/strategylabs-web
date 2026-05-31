@@ -18,6 +18,7 @@ import { HistoryDrawer } from "../components/HistoryDrawer";
 import { useBinanceTradeStreams } from "../lib/useBinanceStreams";
 import { useAuth } from "../context/AuthContext";
 import { getSubscriptionOfferings, purchaseSubscriptionPackage, type RCProductOfferings } from "../lib/purchases";
+import { showInterstitial } from "../lib/ads";
 
 // Modular Sub-components Imports
 import { ScannerHeartbeat } from "./signals/ScannerHeartbeat";
@@ -106,6 +107,13 @@ function SignalsBody() {
   const [animYears, setAnimYears] = useState(false);
   const [selectedCall, setSelectedCall] = useState<V22Stats["recent_calls"][number] | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+
+  const handleSelectCall = async (c: V22Stats["recent_calls"][number]) => {
+    if (!isPaid) {
+      await showInterstitial();
+    }
+    setSelectedCall(c);
+  };
 
   // Re-fetch every 60s so "Live calls" stays fresh as the CSV is updated
   useEffect(() => {
@@ -434,7 +442,7 @@ function SignalsBody() {
                     key={`open-${c.id ?? i}`}
                     call={c}
                     tick={c.symbol ? liveTicks[c.symbol] : undefined}
-                    onSelect={() => setSelectedCall(c)}
+                    onSelect={() => handleSelectCall(c)}
                   />
                 ))}
               </div>
@@ -475,7 +483,7 @@ function SignalsBody() {
                           key={c.id ?? i}
                           call={c}
                           tick={c.symbol ? liveTicks[c.symbol] : undefined}
-                          onSelect={() => setSelectedCall(c)}
+                          onSelect={() => handleSelectCall(c)}
                         />
                       ))
                     )}

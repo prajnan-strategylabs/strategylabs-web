@@ -8,6 +8,7 @@ import { LiveDot, Pill } from "./MobileUI";
 import { supabase } from "../lib/supabase";
 import { apiAdminCheck } from "../lib/api";
 import { Capacitor } from "@capacitor/core";
+import { showBanner, hideBanner } from "../lib/ads";
 
 export function AppLayout() {
   const { user, loading, tierResolved, signOut, isSandbox, updateSandboxTier } = useAuth();
@@ -65,6 +66,24 @@ export function AppLayout() {
       active = false;
     };
   }, [user]);
+
+  // Manage Banner Ads for Free users (only display on main Dashboard & Signals pages)
+  useEffect(() => {
+    if (!user || loading || !tierResolved) return;
+    
+    const isPaid = user.tier !== "free";
+    const showOnThisPath = location.pathname === "/dashboard" || location.pathname === "/signals";
+
+    if (!isPaid && showOnThisPath) {
+      void showBanner();
+    } else {
+      void hideBanner();
+    }
+
+    return () => {
+      void hideBanner();
+    };
+  }, [user?.tier, loading, tierResolved, location.pathname]);
 
   // Hold the page in the loading state until we know:
   //   1. Whether there's a session at all (loading=false)
