@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "784191732876",
+    "project_id": "strategylabs-17066",
+    "storage_bucket": "strategylabs-17066.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:784191732876:android:4a1e63f616fabb78210fa9",
+        "android_client_info": {
+          "package_name": "trade.strategylabs.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDdByWPq1d-VtpoFDonT4sI3OEJ7-VbVsc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

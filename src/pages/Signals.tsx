@@ -156,6 +156,7 @@ function SignalsBody() {
   const liveTicks = useBinanceTradeStreams(openSymbols);
 
   const [rcOfferings, setRcOfferings] = useState<RCProductOfferings | null>(null);
+  const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
 
   useEffect(() => {
     async function loadOfferings() {
@@ -171,35 +172,87 @@ function SignalsBody() {
 
   const dynamicPlans = useMemo(() => {
     return PLANS.map((p) => {
-      if (!rcOfferings?.rawOfferings?.current) return p;
+      if (!rcOfferings?.rawOfferings?.current) {
+        // Fallback simulation for Web / Sandbox
+        if (billing === "yearly" && p.id !== "free") {
+          const yearlyRate = Math.round(p.monthly * 0.8);
+          return {
+            ...p,
+            price: `$${yearlyRate}`,
+            per: "/mo, billed annually"
+          };
+        }
+        return p;
+      }
       const currentOffering = rcOfferings.rawOfferings.current;
       
       let pkg: any = null;
       if (p.id === "trader") {
-        pkg = currentOffering.monthly || currentOffering.annual || null;
+        if (billing === "yearly") {
+          pkg = currentOffering.annual || null;
+          if (!pkg) {
+            pkg = currentOffering.availablePackages?.find((pkg: any) => 
+              (pkg.identifier.toLowerCase().includes("trader") || pkg.product.identifier.toLowerCase().includes("trader")) &&
+              (pkg.identifier.toLowerCase().includes("year") || pkg.identifier.toLowerCase().includes("annual") ||
+               pkg.product.identifier.toLowerCase().includes("year") || pkg.product.identifier.toLowerCase().includes("annual"))
+            ) || null;
+          }
+        } else {
+          pkg = currentOffering.monthly || null;
+          if (!pkg) {
+            pkg = currentOffering.availablePackages?.find((pkg: any) => 
+              (pkg.identifier.toLowerCase().includes("trader") || pkg.product.identifier.toLowerCase().includes("trader")) &&
+              (pkg.identifier.toLowerCase().includes("month") || pkg.product.identifier.toLowerCase().includes("month"))
+            ) || null;
+          }
+        }
+        
+        // General fallback for trader plan
         if (!pkg) {
-          pkg = currentOffering.availablePackages?.find((pkg: any) => 
-            pkg.identifier.toLowerCase().includes("trader") || 
-            pkg.product.identifier.toLowerCase().includes("trader")
-          ) || null;
+          pkg = currentOffering.monthly || currentOffering.annual || null;
         }
       } else if (p.id === "auto") {
-        pkg = currentOffering.availablePackages?.find((pkg: any) => 
-          pkg.identifier.toLowerCase().includes("auto") || 
-          pkg.product.identifier.toLowerCase().includes("auto")
-        ) || null;
+        if (billing === "yearly") {
+          pkg = currentOffering.availablePackages?.find((pkg: any) => 
+            (pkg.identifier.toLowerCase().includes("auto") || pkg.product.identifier.toLowerCase().includes("auto")) &&
+            (pkg.identifier.toLowerCase().includes("year") || pkg.identifier.toLowerCase().includes("annual") ||
+             pkg.product.identifier.toLowerCase().includes("year") || pkg.product.identifier.toLowerCase().includes("annual"))
+          ) || null;
+        } else {
+          pkg = currentOffering.availablePackages?.find((pkg: any) => 
+            (pkg.identifier.toLowerCase().includes("auto") || pkg.product.identifier.toLowerCase().includes("auto")) &&
+            (pkg.identifier.toLowerCase().includes("month") || pkg.product.identifier.toLowerCase().includes("month"))
+          ) || null;
+        }
+
+        // General fallback for auto plan
+        if (!pkg) {
+          pkg = currentOffering.availablePackages?.find((pkg: any) => 
+            pkg.identifier.toLowerCase().includes("auto") || 
+            pkg.product.identifier.toLowerCase().includes("auto")
+          ) || null;
+        }
       }
 
       if (pkg && pkg.product) {
+        const isYearly = pkg.packageType === "ANNUAL" || 
+                         pkg.identifier.toLowerCase().includes("year") || 
+                         pkg.product.identifier.toLowerCase().includes("year") || 
+                         pkg.identifier.toLowerCase().includes("annual") || 
+                         pkg.product.identifier.toLowerCase().includes("annual");
+        const priceString = isYearly 
+          ? `$${Math.round(pkg.product.price / 12)}`
+          : pkg.product.priceString;
         return {
           ...p,
-          price: pkg.product.priceString,
+          price: priceString,
+          per: isYearly ? "/mo, billed annually" : "/mo",
           monthly: pkg.product.price,
         };
       }
       return p;
     });
-  }, [rcOfferings]);
+  }, [rcOfferings, billing]);
 
   const selectedPlan = dynamicPlans.find((p) => p.id === plan)!;
 
@@ -213,7 +266,7 @@ function SignalsBody() {
     }
 
     try {
-      const purchased = await purchaseSubscriptionPackage(selectedPlan.id);
+      const purchased = await purchaseSubscriptionPackage(selectedPlan.id, billing);
       if (purchased) {
         window.location.reload();
       }
@@ -464,6 +517,36 @@ function SignalsBody() {
               </h2>
               <span className="text-[10px] text-ink-subtle">Cancel anytime</span>
             </div>
+            
+            {/* Billing period switcher */}
+            <div className="flex p-0.5 rounded-lg bg-bg-elev/50 border border-line/45 max-w-[220px]">
+              <button
+                type="button"
+                onClick={() => setBilling("monthly")}
+                className={`flex-1 py-1 text-center rounded-md text-[10px] font-bold transition cursor-pointer ${
+                  billing === "monthly"
+                    ? "bg-accent/15 text-accent border border-accent/15"
+                    : "text-ink-subtle hover:text-ink"
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                onClick={() => setBilling("yearly")}
+                className={`flex-1 py-1 text-center rounded-md text-[10px] font-bold transition cursor-pointer flex items-center justify-center gap-1 ${
+                  billing === "yearly"
+                    ? "bg-accent/15 text-accent border border-accent/15"
+                    : "text-ink-subtle hover:text-ink"
+                }`}
+              >
+                Yearly
+                <span className="text-[7.5px] bg-accent/20 text-accent px-1 rounded-sm font-extrabold scale-90">
+                  -20%
+                </span>
+              </button>
+            </div>
+
             <div className="space-y-2">
               {dynamicPlans.map((p) => (
                 <PlanRow

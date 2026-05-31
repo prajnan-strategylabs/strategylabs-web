@@ -2,7 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import { Purchases, type CustomerInfo, type PurchasesPackage } from "@revenuecat/purchases-capacitor";
 import { RevenueCatUI } from "@revenuecat/purchases-capacitor-ui";
 
-const REVENUECAT_API_KEY = "test_COOafRBZYzePmFAunsxrxJfwWxu";
+const REVENUECAT_API_KEY = import.meta.env.VITE_REVENUECAT_API_KEY || "";
 const PRO_ENTITLEMENT_NAME = "StrategyLabs Pro";
 
 export interface RCProductOfferings {
@@ -106,14 +106,17 @@ export async function presentPaywall(offeringId?: string): Promise<boolean> {
  * Purchase a specific package directly by plan ID (e.g. 'trader' or 'auto').
  * Returns true if the purchase was successful and the user is upgraded to Pro.
  */
-export async function purchaseSubscriptionPackage(planId: string): Promise<boolean> {
+export async function purchaseSubscriptionPackage(
+  planId: string,
+  billingPeriod: "monthly" | "yearly" = "monthly"
+): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) {
     alert("In-App Purchases are only available inside the iOS & Android mobile apps. Please purchase on our web platform.");
     return false;
   }
 
   try {
-    console.log(`[RevenueCat] Direct purchase initiated for plan: ${planId}`);
+    console.log(`[RevenueCat] Direct purchase initiated for plan: ${planId} (${billingPeriod})`);
     const offerings = await Purchases.getOfferings();
     if (!offerings.current) {
       console.warn("[RevenueCat] No current offering found.");
@@ -124,18 +127,50 @@ export async function purchaseSubscriptionPackage(planId: string): Promise<boole
     const current = offerings.current;
 
     if (planId === "trader") {
-      pkgToBuy = current.monthly || current.annual || null;
+      if (billingPeriod === "yearly") {
+        pkgToBuy = current.annual || null;
+        if (!pkgToBuy) {
+          pkgToBuy = current.availablePackages.find((pkg) =>
+            (pkg.identifier.toLowerCase().includes("trader") || pkg.product.identifier.toLowerCase().includes("trader")) &&
+            (pkg.identifier.toLowerCase().includes("year") || pkg.identifier.toLowerCase().includes("annual") ||
+             pkg.product.identifier.toLowerCase().includes("year") || pkg.product.identifier.toLowerCase().includes("annual"))
+          ) || null;
+        }
+      } else {
+        pkgToBuy = current.monthly || null;
+        if (!pkgToBuy) {
+          pkgToBuy = current.availablePackages.find((pkg) =>
+            (pkg.identifier.toLowerCase().includes("trader") || pkg.product.identifier.toLowerCase().includes("trader")) &&
+            (pkg.identifier.toLowerCase().includes("month") || pkg.product.identifier.toLowerCase().includes("month"))
+          ) || null;
+        }
+      }
+      
+      // General fallback for trader plan
       if (!pkgToBuy) {
-        pkgToBuy = current.availablePackages.find((pkg) =>
-          pkg.identifier.toLowerCase().includes("trader") ||
-          pkg.product.identifier.toLowerCase().includes("trader")
-        ) || null;
+        pkgToBuy = current.monthly || current.annual || null;
       }
     } else if (planId === "auto") {
-      pkgToBuy = current.availablePackages.find((pkg) =>
-        pkg.identifier.toLowerCase().includes("auto") ||
-        pkg.product.identifier.toLowerCase().includes("auto")
-      ) || null;
+      if (billingPeriod === "yearly") {
+        pkgToBuy = current.availablePackages.find((pkg) =>
+          (pkg.identifier.toLowerCase().includes("auto") || pkg.product.identifier.toLowerCase().includes("auto")) &&
+          (pkg.identifier.toLowerCase().includes("year") || pkg.identifier.toLowerCase().includes("annual") ||
+           pkg.product.identifier.toLowerCase().includes("year") || pkg.product.identifier.toLowerCase().includes("annual"))
+        ) || null;
+      } else {
+        pkgToBuy = current.availablePackages.find((pkg) =>
+          (pkg.identifier.toLowerCase().includes("auto") || pkg.product.identifier.toLowerCase().includes("auto")) &&
+          (pkg.identifier.toLowerCase().includes("month") || pkg.product.identifier.toLowerCase().includes("month"))
+        ) || null;
+      }
+
+      // General fallback for auto plan
+      if (!pkgToBuy) {
+        pkgToBuy = current.availablePackages.find((pkg) =>
+          pkg.identifier.toLowerCase().includes("auto") ||
+          pkg.product.identifier.toLowerCase().includes("auto")
+        ) || null;
+      }
     }
 
     if (!pkgToBuy) {
