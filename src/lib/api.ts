@@ -455,6 +455,14 @@ export async function apiAdminGetConfig(token: string) {
   return get<{ is_launched: boolean; waitlist_full: boolean; admin_enabled: boolean; v22_scanner_disabled: boolean }>("/api/v1/admin/config", token);
 }
 
+export async function apiAdminGetStrategies(token: string): Promise<any[]> {
+  return get<any[]>("/api/v1/admin/strategies", token);
+}
+
+export async function apiAdminGetBacktests(token: string): Promise<any[]> {
+  return get<any[]>("/api/v1/admin/backtests", token);
+}
+
 // ── Public Blog fetch (fix for Blog.tsx) ──────────────────────────────────────
 export async function apiGetBlogs() {
   const res = await fetch(`${API_BASE}/api/v1/blogs`);

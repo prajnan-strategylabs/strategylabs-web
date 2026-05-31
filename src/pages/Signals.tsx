@@ -1,53 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Radio,
-  CheckCircle2,
-  TrendingUp,
-  TrendingDown,
   Zap,
   ChevronRight,
   AlertCircle,
+  History,
 } from "lucide-react";
 import {
   apiGetV22Stats,
   type V22Stats,
-  type V22YearRow,
-  type V22RecentWin,
 } from "../lib/api";
 import { EquityCurve, LiveDot, Pill } from "../components/MobileUI";
 import { ConnectTelegram } from "../components/ConnectTelegram";
 import { LiveSignalDrawer } from "../components/LiveSignalDrawer";
 import { HistoryDrawer } from "../components/HistoryDrawer";
-import { useBinanceTradeStreams, type LiveTick } from "../lib/useBinanceStreams";
+import { useBinanceTradeStreams } from "../lib/useBinanceStreams";
 import { useAuth } from "../context/AuthContext";
-import { History } from "lucide-react";
 
-interface Plan {
-  id: "free" | "explorer" | "trader" | "pro" | "auto";
-  name: string;
-  price: string;
-  /** Numeric price for the trial CTA copy. 0 for the free tier. */
-  monthly: number;
-  per: string;
-  /** Single-sentence tagline that captures the upgrade story. */
-  note: string;
-  /** Three short bullets — kept tight so the row stays mobile-friendly. */
-  features: string[];
-  cta: string;
-  featured?: boolean;
-}
+// Modular Sub-components Imports
+import { ScannerHeartbeat } from "./signals/ScannerHeartbeat";
+import { LiveCallRow } from "./signals/LiveCallRow";
+import { YearBars } from "./signals/YearBars";
+import { PlanRow, type Plan } from "./signals/PlanRow";
+import { RecentWinChip } from "./signals/RecentWinChip";
+import { HeroSkeleton } from "./signals/HeroSkeleton";
 
 /* ────────────────────────────────────────────────────────────────────────
    Pricing — 3 visible tiers (Free / Trader / Auto). The 5-tier UserTier
    type stays wide for back-compat with existing users on legacy tiers
    (explorer / pro); the UI just collapses them visually onto the nearest
    visible tier via `currentTierForDisplay()` below.
-
-   Why 3 tiers? Cleaner conversion psychology — "no / maybe / yes I'm
-   serious" beats a 5-way decision tree for a young product. The Trader
-   tier ($49) is the realtime moat-unlock and the obvious middle pick.
-   Auto ($149) anchors the price ceiling and exists for users who want
-   end-to-end automation via exchange API.
    ──────────────────────────────────────────────────────────────────────── */
 const PLANS: Plan[] = [
   {
@@ -105,27 +87,17 @@ function visibleTierFor(tier: string): PlanId {
 }
 
 export function Signals() {
-  // Signals page is open to anyone who's signed in.
-  // The landing-page waitlist form still captures emails for marketing,
-  // but it no longer gates access. To re-introduce a gate later,
-  // wrap <SignalsBody /> with <WaitlistGate> again.
   return <SignalsBody />;
 }
 
 function SignalsBody() {
   const { user } = useAuth();
-  // Visible tier for the UI: 3-tier collapse (free/trader/auto). The real
-  // backend tier still gates features at the API level — legacy explorer/pro
-  // users keep their entitlements; here we just decide which plan row to
-  // highlight + which upgrade nudge to render.
   const currentTier = visibleTierFor(user?.tier ?? "free");
   const isPaid = currentTier !== "free";
 
   const [data, setData] = useState<V22Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  // Default selection: the user's current tier if they have one, else the
-  // featured tier (Trader). Keeps the CTA contextual on first paint.
   const [plan, setPlan] = useState<PlanId>(
     currentTier !== "free" ? currentTier : "trader",
   );
@@ -167,9 +139,7 @@ function SignalsBody() {
     }
   }, [data]);
 
-  // ── Live Binance trade stream for every open call's symbol ──────────────
-  // Single combined-stream WebSocket regardless of how many rows are open.
-  // Closed rows are skipped (their PnL is final).
+  // Live Binance trade stream for every open call's symbol
   const openCalls = useMemo(
     () =>
       data?.recent_calls?.filter(
@@ -232,7 +202,7 @@ function SignalsBody() {
             </button>
           )}
           <Pill tone="accent">
-            <CheckCircle2 className="h-[9px] w-[9px]" /> audited
+            audited
           </Pill>
         </div>
       </header>
@@ -432,10 +402,6 @@ function SignalsBody() {
           {/* ── Sticky primary CTA — tier-aware ── */}
           {(() => {
             const isCurrent = selectedPlan.id === currentTier;
-            // Three states:
-            //   1. They selected their own plan → muted "Your current plan" CTA
-            //   2. They selected a paid plan that costs more than current → upgrade CTA with trial copy
-            //   3. They selected free while on a paid plan → "Switch to free" (no-op for now)
             const currentRank = PLANS.findIndex((p) => p.id === currentTier);
             const selectedRank = PLANS.findIndex((p) => p.id === selectedPlan.id);
             const isUpgrade = selectedRank > currentRank;
@@ -537,381 +503,6 @@ function SignalsBody() {
           setSelectedCall(c);
         }}
       />
-    </div>
-  );
-}
-
-/* ───────── Scanner heartbeat chip ───────── */
-function ScannerHeartbeat({
-  scanner,
-}: {
-  scanner?: V22Stats["scanner"];
-}) {
-  // We only care that the scanner has produced at least one heartbeat at all.
-  // The actual 4H cadence is design-correct but confusing to expose ("scanned
-  // 2h ago" looks broken). A pulsating LIVE chip is the right signal.
-  const isLive = !!(scanner?.last_scan_at || scanner?.last_exit_check);
-  if (!isLive) return null;
-  return (
-    <span
-      className="text-[10px] font-mono font-bold flex-none whitespace-nowrap flex items-center gap-1 uppercase tracking-[0.12em]"
-      style={{ color: "var(--accent)" }}
-    >
-      <LiveDot size={5} /> live
-    </span>
-  );
-}
-
-/* ───────── Live call row ───────── */
-function LiveCallRow({
-  call,
-  tick,
-  onSelect,
-}: {
-  call: V22Stats["recent_calls"][number];
-  tick?: LiveTick;
-  onSelect?: () => void;
-}) {
-  const long = call.dir === "LONG";
-  const dirColor = long ? "var(--accent)" : "#fda4af";
-  const isOpen = call.status === "open";
-
-  // Map the raw outcome code to a chip label + tone
-  const outcomeLabel = (() => {
-    if (isOpen) return "running";
-    switch (call.outcome) {
-      case "tp1":
-      case "tp1+trail":
-        return "Hit TP";
-      case "tp2":
-        return "Hit TP2";
-      case "sl":
-      case "stop_loss":
-        return "Stopped";
-      case "trail":
-      case "trail_stop":
-        return "Trail close";
-      case "timeout":
-        return "Timed out";
-      default:
-        return call.outcome || "Closed";
-    }
-  })();
-  const outcomeTone: "accent" | "danger" | "warn" | "info" = isOpen
-    ? "info"
-    : call.outcome?.startsWith("tp") || call.outcome?.startsWith("trail")
-      ? "accent"
-      : call.outcome?.startsWith("sl") || call.outcome === "stop_loss"
-        ? "danger"
-        : "warn";
-
-  // Hold duration: entry → exit (closed) OR entry → now (open)
-  const holdLabel = (() => {
-    const ms = (() => {
-      try {
-        const start = new Date(call.entry_time).getTime();
-        const end = isOpen
-          ? Date.now()
-          : new Date(call.exit_time ?? call.entry_time).getTime();
-        return Math.max(0, end - start);
-      } catch {
-        return 0;
-      }
-    })();
-    const hours = Math.floor(ms / 3_600_000);
-    if (hours < 24) return `${Math.max(1, hours)}h`;
-    return `${Math.round(hours / 24)}d`;
-  })();
-
-  // ── Live unrealized return for open positions ─────────────────────────
-  // When the row is OPEN and we have a live tick from Binance, override
-  // the static `ret_pct` (which is null for in-flight positions anyway).
-  const liveRetPct =
-    isOpen && tick?.price != null && call.entry
-      ? ((tick.price - call.entry) / call.entry) * (long ? 1 : -1) * 100
-      : null;
-  const displayRetPct = liveRetPct ?? call.ret_pct ?? null;
-
-  // Dollar P&L — uses the actual risk_usd from the signal, fallback to $50
-  const riskUsd = call.risk_usd ?? 50;
-  const displayUsd = (() => {
-    if (!isOpen && call.pnl != null) return call.pnl;
-    if (displayRetPct == null || !call.entry || !call.stop_loss) return null;
-    const riskDist = Math.abs(call.entry - call.stop_loss) || 1;
-    const movedR =
-      ((tick?.price ?? call.entry * (1 + (displayRetPct / 100) * (long ? 1 : -1))) -
-        call.entry) *
-      (long ? 1 : -1) /
-      riskDist;
-    return movedR * riskUsd;
-  })();
-
-  const pnlColor =
-    displayRetPct == null
-      ? "var(--ink-muted)"
-      : displayRetPct >= 0
-        ? "var(--accent)"
-        : "#fda4af";
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className="w-full text-left rounded-xl border border-line/60 bg-bg-card/40 hover:bg-bg-card/60 hover:border-line p-3 flex items-center gap-3 active:scale-[0.995] transition cursor-pointer"
-    >
-      <div className="h-9 w-9 rounded-lg bg-bg-elev border border-line/50 flex items-center justify-center flex-none">
-        <span className="font-mono text-[9px] font-bold text-ink-muted">
-          {call.asset}
-        </span>
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className="font-bold text-[13px]">{call.asset}/USDT</span>
-          <Pill tone={long ? "accent" : "danger"} className="!py-[1px]">
-            {long ? (
-              <TrendingUp className="h-[9px] w-[9px]" />
-            ) : (
-              <TrendingDown className="h-[9px] w-[9px]" />
-            )}{" "}
-            {call.dir}
-          </Pill>
-          {call.strategy && (
-            <span className="text-[9px] font-mono font-bold text-ink-subtle">
-              {call.strategy}
-            </span>
-          )}
-        </div>
-        <div className="text-[10px] text-ink-subtle font-mono mt-0.5">
-          {isOpen
-            ? `Entered ${call.when_ago} · ${holdLabel} running`
-            : `Entered ${call.when_ago} · held ${holdLabel}`}
-        </div>
-      </div>
-      <div className="flex flex-col items-end flex-none gap-0.5 min-w-[80px]">
-        <Pill tone={outcomeTone} className="!py-[1px]">
-          {isOpen && <LiveDot size={4} />} {outcomeLabel}
-        </Pill>
-        {displayUsd != null && (
-          <div
-            key={`usd-${tick?.lastTickAt ?? "static"}`}
-            className="font-mono font-extrabold tabular-nums text-[13px] sl-tick-flash"
-            style={{ color: pnlColor, lineHeight: 1.1 }}
-          >
-            {displayUsd >= 0 ? "+" : "-"}${Math.abs(displayUsd).toFixed(2)}
-          </div>
-        )}
-        {displayRetPct != null && (
-          <div
-            className="font-mono font-bold tabular-nums text-[10px]"
-            style={{ color: pnlColor, opacity: 0.85 }}
-          >
-            {displayRetPct >= 0 ? "+" : ""}
-            {displayRetPct.toFixed(2)}%
-          </div>
-        )}
-      </div>
-      <div
-        className="h-8 w-0.5 rounded-full flex-none"
-        style={{ background: dirColor, opacity: 0.5 }}
-      />
-    </button>
-  );
-}
-
-/* ───────── Year bars ───────── */
-function YearBars({
-  years,
-  animate,
-}: {
-  years: V22YearRow[];
-  animate: boolean;
-}) {
-  const maxAbs = Math.max(1, ...years.map((y) => Math.abs(y.pct)));
-  return (
-    <div className="space-y-2">
-      {years.map((y, i) => {
-        const pos = y.pct >= 0;
-        const color = pos ? "var(--accent)" : "#fda4af";
-        const w = (Math.abs(y.pct) / maxAbs) * 100;
-        return (
-          <div
-            key={y.year}
-            className="grid grid-cols-[36px_1fr_64px] gap-2.5 items-center"
-          >
-            <div
-              className="font-mono text-[11px] font-bold tabular-nums"
-              style={{ color: y.is_ytd ? "var(--ink)" : "var(--ink-muted)" }}
-            >
-              '{String(y.year).slice(-2)}
-            </div>
-            <div className="relative h-5 rounded-md overflow-hidden bg-bg-elev/40 border border-line/40">
-              <div
-                className="absolute inset-y-0 left-0 rounded-md"
-                style={{
-                  width: animate ? `${w}%` : "0%",
-                  background: `linear-gradient(90deg, ${color}, ${color}99)`,
-                  transition: `width 0.9s cubic-bezier(0.22, 1, 0.36, 1) ${i * 80}ms`,
-                  boxShadow: pos ? `inset 0 0 0 1px ${color}33` : "none",
-                }}
-              />
-              {y.label && (
-                <span
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] uppercase tracking-wider font-bold"
-                  style={{ color: "var(--ink-subtle)" }}
-                >
-                  {y.label}
-                </span>
-              )}
-            </div>
-            <div
-              className="text-right font-mono font-extrabold text-[12px] tabular-nums"
-              style={{ color }}
-            >
-              {pos ? "+" : ""}
-              {y.pct}%
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ───────── Plan row ───────── */
-function PlanRow({
-  plan,
-  selected,
-  isCurrent,
-  onSelect,
-}: {
-  plan: Plan;
-  selected: boolean;
-  /** True when this row matches the user's actual paid tier — gets a "your plan" chip. */
-  isCurrent: boolean;
-  onSelect: () => void;
-}) {
-  const accent = plan.featured ? "var(--accent)" : "var(--ink-muted)";
-  const border = selected ? accent : "var(--line)";
-  return (
-    <button
-      onClick={onSelect}
-      className="w-full rounded-xl p-3.5 flex flex-col gap-2 text-left transition active:scale-[0.99]"
-      style={{
-        border: `1px solid ${border}`,
-        background: selected
-          ? plan.featured
-            ? "rgba(34,211,170,0.06)"
-            : "rgba(15,21,37,0.55)"
-          : "rgba(15,21,37,0.30)",
-      }}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <span
-            className="h-5 w-5 rounded-full flex-none flex items-center justify-center"
-            style={{
-              border: `2px solid ${selected ? accent : "var(--line)"}`,
-              background: selected ? accent : "transparent",
-            }}
-          >
-            {selected && (
-              <CheckCircle2
-                className="h-[10px] w-[10px]"
-                style={{ color: "var(--bg)" }}
-              />
-            )}
-          </span>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-bold text-[14px]">{plan.name}</span>
-              {plan.featured && !isCurrent && (
-                <Pill tone="accent" className="!py-[1px] !text-[8px]">
-                  popular
-                </Pill>
-              )}
-              {isCurrent && (
-                <Pill tone="info" className="!py-[1px] !text-[8px]">
-                  your plan
-                </Pill>
-              )}
-            </div>
-            <div className="text-[11px] text-ink-muted">{plan.note}</div>
-          </div>
-        </div>
-        <div className="text-right flex-none">
-          <span
-            className="font-mono tabular-nums font-extrabold text-[15px]"
-            style={{ color: plan.featured ? "var(--accent)" : "var(--ink)" }}
-          >
-            {plan.price}
-          </span>
-          <span className="text-[10px] text-ink-muted">{plan.per}</span>
-        </div>
-      </div>
-      {/* Feature bullets — wrap so they stay readable on narrow viewports */}
-      <div className="pl-8 flex flex-wrap gap-x-3 gap-y-0.5">
-        {plan.features.map((f) => (
-          <span
-            key={f}
-            className="text-[10px] font-mono text-ink-subtle flex items-center gap-1"
-          >
-            <span
-              className="h-1 w-1 rounded-full flex-none"
-              style={{ background: plan.featured ? "var(--accent)" : "var(--ink-subtle)" }}
-            />
-            {f}
-          </span>
-        ))}
-      </div>
-    </button>
-  );
-}
-
-/* ───────── Recent win chip (horizontal scroll) ───────── */
-function RecentWinChip({ w }: { w: V22RecentWin }) {
-  return (
-    <div className="flex-none w-[140px] rounded-xl border border-line/60 bg-bg-card/40 p-3">
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-[9px] font-bold text-ink-muted">
-          {w.asset}
-        </span>
-        <Pill tone={w.dir === "LONG" ? "accent" : "danger"} className="!py-[1px]">
-          {w.dir === "LONG" ? (
-            <TrendingUp className="h-[8px] w-[8px]" />
-          ) : (
-            <TrendingDown className="h-[8px] w-[8px]" />
-          )}{" "}
-          {w.dir}
-        </Pill>
-      </div>
-      <div
-        className="font-mono tabular-nums font-extrabold text-[18px] mt-2"
-        style={{ color: "var(--accent)" }}
-      >
-        +{w.ret_pct}%
-      </div>
-      <div className="text-[10px] text-ink-subtle mt-0.5">
-        {w.hold_days}d hold · {w.when_ago}
-      </div>
-    </div>
-  );
-}
-
-/* ───────── Loading skeleton ───────── */
-function HeroSkeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-line/70 bg-bg-card/40 p-5 animate-pulse">
-        <div className="h-3 w-40 rounded bg-bg-elev/60" />
-        <div className="h-12 w-56 rounded bg-bg-elev/60 mt-3" />
-        <div className="h-3 w-64 rounded bg-bg-elev/60 mt-3" />
-        <div className="h-20 w-full rounded bg-bg-elev/40 mt-4" />
-        <div className="grid grid-cols-4 gap-2 mt-3">
-          {[1, 2, 3, 4].map((n) => (
-            <div key={n} className="h-12 rounded-lg bg-bg-elev/40" />
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

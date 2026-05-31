@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   Lock,
-  Loader2
+  Loader2,
+  Activity
 } from "lucide-react";
 import { LogoLockup } from "./Logo";
 
@@ -110,6 +111,7 @@ export function AdminLayout() {
     { label: "Blog Posts", to: "/admin/blogs", icon: BookOpen },
     { label: "Waitlist", to: "/admin/waitlist", icon: Users },
     { label: "User Accounts", to: "/admin/users", icon: Users },
+    { label: "AI Lab Tracker", to: "/admin/tracker", icon: Activity },
     { label: "System Config", to: "/admin/settings", icon: Settings },
   ];
 

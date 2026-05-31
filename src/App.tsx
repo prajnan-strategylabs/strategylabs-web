@@ -15,6 +15,7 @@ import { AdminBlogEditor } from "./pages/admin/AdminBlogEditor";
 import { AdminWaitlist } from "./pages/admin/AdminWaitlist";
 import { AdminUsers } from "./pages/admin/AdminUsers";
 import { AdminSettings } from "./pages/admin/AdminSettings";
+import { AdminStrategyTracker } from "./pages/admin/AdminStrategyTracker";
 
 function App() {
   return (
@@ -43,6 +44,7 @@ function App() {
             <Route path="waitlist" element={<AdminWaitlist />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="settings" element={<AdminSettings />} />
+            <Route path="tracker" element={<AdminStrategyTracker />} />
           </Route>
         </Routes>
       </BrowserRouter>

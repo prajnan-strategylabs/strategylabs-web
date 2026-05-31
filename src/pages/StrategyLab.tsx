@@ -9,7 +9,6 @@ import {
   ArrowRight,
   Mic,
   AlertTriangle,
-  ChevronRight,
   Loader2,
   Lock,
   Send,
@@ -30,12 +29,19 @@ import {
 import {
   EquityCurve,
   LiveDot,
-  Pill,
 } from "../components/MobileUI";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-type Stage = "input" | "compiling" | "chat" | "spec" | "backtesting" | "result";
+// Modular Sub-components Imports
+import { Stepper } from "./strategylab/Stepper";
+import { CompilingPanel } from "./strategylab/CompilingPanel";
+import { SpecCard } from "./strategylab/SpecCard";
+import { SafetyChecks } from "./strategylab/SafetyChecks";
+import { BacktestRunning } from "./strategylab/BacktestRunning";
+import { TradePreview } from "./strategylab/TradePreview";
+
+export type Stage = "input" | "compiling" | "chat" | "spec" | "backtesting" | "result";
 
 const STARTER_IDEAS = [
   {
@@ -763,7 +769,7 @@ function StrategyLabBody() {
             
             <button 
               onClick={() => setShowUpgradeModal(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg border border-line/60 bg-bg-elev text-ink-muted hover:text-ink transition-colors"
+              className="absolute top-4 right-4 p-1.5 rounded-lg border border-line bg-bg-elev text-ink-muted hover:text-ink transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
@@ -828,272 +834,6 @@ function StrategyLabBody() {
   );
 }
 
-/* ───────── Stepper progress bar ───────── */
-function Stepper({ stage }: { stage: Stage }) {
-  const steps = ["Prompt", "Refine Spec", "Simulation", "Walk-forward Result"];
-  const map: Record<Stage, number> = {
-    input: 0,
-    compiling: 1,
-    chat: 1,
-    spec: 1,
-    backtesting: 2,
-    result: 3,
-  };
-  const idx = map[stage] ?? 0;
-  return (
-    <div className="flex items-center gap-1.5">
-      {steps.map((s, i) => (
-        <Segment key={s} label={s} active={i <= idx} current={i === idx} last={i === steps.length - 1} />
-      ))}
-    </div>
-  );
-}
-
-function Segment({
-  label,
-  active,
-  current,
-  last,
-}: {
-  label: string;
-  active: boolean;
-  current: boolean;
-  last: boolean;
-}) {
-  return (
-    <>
-      <div className="flex items-center gap-1.5">
-        <span
-          className={`h-1.5 rounded-full transition-all duration-350 ${active ? "" : "opacity-30"}`}
-          style={{
-            background: active ? "var(--accent)" : "var(--ink-subtle)",
-            width: current ? 22 : 8,
-          }}
-        />
-        <span
-          className={`text-[10px] font-bold uppercase tracking-[0.12em] ${active ? "text-ink" : "text-ink-subtle"}`}
-        >
-          {label}
-        </span>
-      </div>
-      {!last && (
-        <span
-          className="flex-1 h-px"
-          style={{ background: "var(--line)" }}
-        />
-      )}
-    </>
-  );
-}
-
-/* ───────── Compiler Typewriter Loader ───────── */
-function CompilingPanel({ prompt }: { prompt: string }) {
-  const lines = [
-    "// parsing quantitative thesis...",
-    `tokens = lex("${prompt.slice(0, 18)}...")`,
-    "✓ scanning asset and timeframe gates",
-    "✓ mapping indicator specifications",
-    "// triggering quant compiler Consensus",
-    "✓ resolving triggers and safety indicators",
-    "✓ rules spec compiled successfully in 0.42s"
-  ];
-  
-  const [shown, setShown] = useState<string[]>([]);
-  
-  useEffect(() => {
-    let i = 0;
-    const id = window.setInterval(() => {
-      i++;
-      setShown(lines.slice(0, i));
-      if (i >= lines.length) window.clearInterval(id);
-    }, 150);
-    return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  
-  return (
-    <div className="rounded-2xl border border-line bg-bg-card/40 p-4 animate-fade-in">
-      <div className="flex items-center gap-2 mb-3">
-        <div
-          className="relative h-7 w-7 rounded-lg flex items-center justify-center bg-accent/15 text-accent"
-        >
-          <Terminal className="h-[14px] w-[14px]" />
-        </div>
-        <div className="text-[11px] uppercase tracking-[0.15em] font-bold text-ink-muted">
-          Compiling Thesis...
-        </div>
-        <span className="ml-auto inline-flex items-center gap-1 text-[10px] text-ink-subtle font-mono">
-          <LiveDot size={4} /> claude
-        </span>
-      </div>
-      <div className="rounded-xl bg-bg-elev/70 border border-line/45 p-3.5 font-mono text-[11px] leading-[1.7] text-ink-muted min-h-[180px]">
-        {shown.map((l, i) => {
-          const isOk = l.startsWith("✓");
-          const isComment = l.startsWith("//");
-          return (
-            <div
-              key={i}
-              style={{
-                color: isOk
-                  ? "var(--accent)"
-                  : isComment
-                    ? "var(--ink-subtle)"
-                    : "var(--ink)",
-              }}
-            >
-              {l}
-              {i === shown.length - 1 && shown.length < lines.length && (
-                <span
-                  className="inline-block w-1.5 h-3 -mb-0.5 ml-0.5 bg-accent animate-pulse"
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* ───────── Dynamic Spec Card Component ───────── */
-function SpecCard({ spec }: { spec: any }) {
-  if (!spec) {
-    return (
-      <div className="rounded-2xl border border-line bg-bg-card/40 p-12 text-center text-ink-subtle text-xs italic font-mono">
-        Waiting for Quant Coach parameters...
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-2xl border border-line bg-bg-card/40 overflow-hidden animate-fade-in">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-line/40 bg-bg-elev/10">
-        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] font-bold text-ink-muted">
-          <Terminal className="h-3 w-3" /> Generated Strategy spec
-        </div>
-        <Pill tone="accent">
-          <CheckCircle2 className="h-[9px] w-[9px]" /> active rules
-        </Pill>
-      </div>
-      <pre className="px-4 py-4 font-mono text-[11px] leading-[1.75] text-ink-muted overflow-x-auto whitespace-pre select-text">
-        <span className="text-ink-subtle">version:</span>{" "}
-        <span style={{ color: "var(--accent)" }}>"v22"</span>
-        {"\n"}
-        <span className="text-ink-subtle">asset:</span>{" "}
-        <span style={{ color: "var(--accent)" }}>{spec.asset || "Pending"}</span>
-        {"\n"}
-        <span className="text-ink-subtle">timeframe:</span>{" "}
-        <span style={{ color: "var(--accent)" }}>{spec.timeframe || "Pending"}</span>
-        {"\n"}
-        <span className="text-ink-subtle">indicators:</span>
-        {spec.indicators && spec.indicators.map((ind: string) => (
-          `\n  - ${ind}`
-        ))}
-        {"\n"}
-        <span className="text-ink-subtle">entry:</span>{" "}
-        <span style={{ color: "var(--accent)" }}>{spec.entry || "Pending"}</span>
-        {"\n"}
-        <span className="text-ink-subtle">exit:</span>{" "}
-        <span style={{ color: "var(--accent)" }}>{spec.exit || "Pending"}</span>
-        {"\n"}
-        <span className="text-ink-subtle">stop:</span>{" "}
-        <span style={{ color: "var(--accent)" }}>{spec.stop_loss || "Pending"}</span>
-        {"\n"}
-        <span className="text-ink-subtle">target:</span>{" "}
-        <span style={{ color: "var(--accent)" }}>{spec.target || "Pending"}</span>
-      </pre>
-    </div>
-  );
-}
-
-/* ───────── Strategy Safety Checks ───────── */
-function SafetyChecks() {
-  const checks = [
-    { k: "Walk-forward windows", v: "12 of 12 pass" },
-    { k: "Monte-Carlo (10k runs)", v: "p95 DD < 15%" },
-    { k: "Out-of-sample Sharpe", v: "2.31 (in: 2.44)" },
-    { k: "Survivorship bias", v: "filtered" },
-  ];
-  return (
-    <div className="rounded-2xl border border-line bg-bg-card/40 p-4 space-y-3">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] font-bold text-ink-muted">
-        <CheckCircle2 className="h-3 w-3" /> Walk-forward Robustness
-      </div>
-      <div className="space-y-1.5">
-        {checks.map((c) => (
-          <div
-            key={c.k}
-            className="flex items-center justify-between text-[12px] py-1.5 border-b border-line/30 last:border-0"
-          >
-            <span className="text-ink-muted">{c.k}</span>
-            <span className="font-mono text-ink flex items-center gap-1.5">
-              {c.v}
-              <span
-                className="h-1.5 w-1.5 rounded-full bg-accent"
-              />
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ───────── Simulation viewport runner ───────── */
-function BacktestRunning({
-  equity,
-  progress,
-}: {
-  equity: number[];
-  progress: number;
-}) {
-  return (
-    <div className="rounded-2xl border border-line bg-bg-card/40 p-4 animate-fade-in space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span
-            className="h-2 w-2 rounded-full animate-pulse bg-accent"
-          />
-          <span className="text-[11px] uppercase tracking-[0.15em] font-bold text-ink-muted">
-            Simulating walk-forward data
-          </span>
-        </div>
-        <span
-          className="font-mono tabular-nums text-[12px] font-bold text-accent"
-        >
-          {progress}%
-        </span>
-      </div>
-      <div
-        className="h-1.5 rounded-full overflow-hidden bg-line"
-      >
-        <div
-          className="h-full transition-all duration-150 bg-accent"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-      <div className="rounded-xl bg-bg-elev/50 border border-line/45 px-3 py-2">
-        <EquityCurve
-          data={equity.length ? equity : [100, 100]}
-          height={140}
-          animated={false}
-        />
-      </div>
-      <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-mono tabular-nums text-ink-subtle">
-        <div>
-          8.2y data <span className="text-ink-subtle">·</span>{" "}
-          <span className="text-accent">scanning</span>
-        </div>
-        <div>
-          47 pairs <span className="text-ink-subtle">·</span>{" "}
-          <span className="text-accent">matched</span>
-        </div>
-        <div>1.2M bars</div>
-      </div>
-    </div>
-  );
-}
-
 /* ───────── Results Metric Card ───────── */
 function MetricCard({
   k,
@@ -1121,42 +861,6 @@ function MetricCard({
         {v}
       </div>
       <div className="text-[10px] text-ink-subtle mt-0.5">{sub}</div>
-    </div>
-  );
-}
-
-/* ───────── Recent trades lists preview ───────── */
-function TradePreview({ trades }: { trades: any[] }) {
-  return (
-    <div className="rounded-2xl border border-line bg-bg-card/40">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-line/40 bg-bg-elev/10">
-        <div className="text-[11px] uppercase tracking-[0.15em] font-bold text-ink-muted">
-          Recent simulated trades
-        </div>
-        <button className="text-[10px] font-bold text-ink-muted hover:text-ink flex items-center gap-1">
-          View all <ChevronRight className="h-2.5 w-2.5" />
-        </button>
-      </div>
-      <div>
-        {trades && trades.map((t, i) => (
-          <div
-            key={i}
-            className="px-4 py-2.5 flex items-center gap-3 text-[12px] border-b border-line/30 last:border-0"
-          >
-            <div className="text-ink-subtle font-mono w-14 text-[11px]">{t.date}</div>
-            <Pill tone={t.pos ? "accent" : "danger"}>{t.side}</Pill>
-            <div className="flex-1 font-mono text-ink-muted text-[11px] tabular-nums">
-              ${t.entry.toLocaleString()} → ${t.exit.toLocaleString()}
-            </div>
-            <div
-              className="font-mono font-bold tabular-nums text-[12px]"
-              style={{ color: t.pos ? "var(--accent)" : "#fda4af" }}
-            >
-              {t.r}
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
