@@ -462,3 +462,64 @@ export async function apiGetBlogs() {
   return res.json();
 }
 
+
+// ── Interactive AI Strategy Lab Endpoints ─────────────────────────────────────
+export interface ChatMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
+export interface ChatStrategyResponse {
+  reply: string;
+  is_complete: boolean;
+  doubts: string[];
+  spec: {
+    asset: string;
+    timeframe: string;
+    indicators: string[];
+    entry: string;
+    exit: string;
+    stop_loss: string;
+    target: string;
+  };
+}
+
+export interface AuditStrategyResponse {
+  analysis: string;
+  optimized_prompt: string;
+}
+
+export async function apiChatStrategySpec(
+  token: string,
+  prompt: string,
+  messages: ChatMessage[]
+): Promise<ChatStrategyResponse> {
+  const res = await fetch(`${API_BASE}/api/v1/strategies/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ prompt, messages }),
+  });
+  if (!res.ok) throw new Error("Quant Coach compilation failed");
+  return res.json() as Promise<ChatStrategyResponse>;
+}
+
+export async function apiAnalyzeBacktest(
+  token: string,
+  runId: string
+): Promise<AuditStrategyResponse> {
+  const res = await fetch(`${API_BASE}/api/v1/backtests/${runId}/analyze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    const msg = typeof err.detail === "object" && err.detail?.message ? err.detail.message : (err.detail ?? "Backtest analysis failed");
+    throw new Error(msg);
+  }
+  return res.json() as Promise<AuditStrategyResponse>;
+}
+
+export async function apiListBacktests(token: string): Promise<any[]> {
+  return get<any[]>("/api/v1/backtests", token);
+}
+
