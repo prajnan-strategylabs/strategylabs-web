@@ -17,7 +17,7 @@ import { LiveSignalDrawer } from "../components/LiveSignalDrawer";
 import { HistoryDrawer } from "../components/HistoryDrawer";
 import { useBinanceTradeStreams } from "../lib/useBinanceStreams";
 import { useAuth } from "../context/AuthContext";
-import { getSubscriptionOfferings, presentPaywall, type RCProductOfferings } from "../lib/purchases";
+import { getSubscriptionOfferings, purchaseSubscriptionPackage, type RCProductOfferings } from "../lib/purchases";
 
 // Modular Sub-components Imports
 import { ScannerHeartbeat } from "./signals/ScannerHeartbeat";
@@ -177,6 +177,12 @@ function SignalsBody() {
       let pkg: any = null;
       if (p.id === "trader") {
         pkg = currentOffering.monthly || currentOffering.annual || null;
+        if (!pkg) {
+          pkg = currentOffering.availablePackages?.find((pkg: any) => 
+            pkg.identifier.toLowerCase().includes("trader") || 
+            pkg.product.identifier.toLowerCase().includes("trader")
+          ) || null;
+        }
       } else if (p.id === "auto") {
         pkg = currentOffering.availablePackages?.find((pkg: any) => 
           pkg.identifier.toLowerCase().includes("auto") || 
@@ -207,12 +213,12 @@ function SignalsBody() {
     }
 
     try {
-      const purchased = await presentPaywall(selectedPlan.id);
+      const purchased = await purchaseSubscriptionPackage(selectedPlan.id);
       if (purchased) {
         window.location.reload();
       }
     } catch (e) {
-      console.error("Paywall error", e);
+      console.error("Purchase error", e);
     }
   };
   const liveSinceLabel = useMemo(() => {

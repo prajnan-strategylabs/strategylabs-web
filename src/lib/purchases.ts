@@ -103,6 +103,62 @@ export async function presentPaywall(offeringId?: string): Promise<boolean> {
 }
 
 /**
+ * Purchase a specific package directly by plan ID (e.g. 'trader' or 'auto').
+ * Returns true if the purchase was successful and the user is upgraded to Pro.
+ */
+export async function purchaseSubscriptionPackage(planId: string): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) {
+    alert("In-App Purchases are only available inside the iOS & Android mobile apps. Please purchase on our web platform.");
+    return false;
+  }
+
+  try {
+    console.log(`[RevenueCat] Direct purchase initiated for plan: ${planId}`);
+    const offerings = await Purchases.getOfferings();
+    if (!offerings.current) {
+      console.warn("[RevenueCat] No current offering found.");
+      return false;
+    }
+
+    let pkgToBuy: PurchasesPackage | null = null;
+    const current = offerings.current;
+
+    if (planId === "trader") {
+      pkgToBuy = current.monthly || current.annual || null;
+      if (!pkgToBuy) {
+        pkgToBuy = current.availablePackages.find((pkg) =>
+          pkg.identifier.toLowerCase().includes("trader") ||
+          pkg.product.identifier.toLowerCase().includes("trader")
+        ) || null;
+      }
+    } else if (planId === "auto") {
+      pkgToBuy = current.availablePackages.find((pkg) =>
+        pkg.identifier.toLowerCase().includes("auto") ||
+        pkg.product.identifier.toLowerCase().includes("auto")
+      ) || null;
+    }
+
+    if (!pkgToBuy) {
+      console.warn(`[RevenueCat] No matching package found for plan: ${planId}. Falling back to default paywall.`);
+      // Fallback: present paywall UI
+      return await presentPaywall();
+    }
+
+    console.log(`[RevenueCat] Purchasing package: ${pkgToBuy.identifier} (${pkgToBuy.product.identifier})`);
+    const { customerInfo } = await Purchases.purchasePackage({ aPackage: pkgToBuy });
+    const hasPro = customerInfo.entitlements.active[PRO_ENTITLEMENT_NAME] !== undefined;
+    return hasPro;
+  } catch (error: any) {
+    if (error.userCancelled) {
+      console.log("[RevenueCat] User cancelled the purchase.");
+    } else {
+      console.error("[RevenueCat] Error during package purchase:", error);
+    }
+    return false;
+  }
+}
+
+/**
  * Present the RevenueCat Paywall UI ONLY if the user does not already have an active subscription.
  */
 export async function presentPaywallIfNeeded(): Promise<boolean> {
