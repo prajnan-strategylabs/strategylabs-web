@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase, supabaseReady } from "../lib/supabase";
 import { clearWaitlistCache } from "../lib/useWaitlistStatus";
+import { configurePurchases, checkProEntitlement, addSubscriptionListener } from "../lib/purchases";
 
 export type UserTier = "free" | "explorer" | "trader" | "pro" | "auto";
 
@@ -71,6 +72,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [tierResolved, setTierResolved] = useState(false);
   const [isSandbox, setIsSandbox] = useState(false);
+
+  // --- RevenueCat Capacitor Integration ---
+  useEffect(() => {
+    if (!user || isSandbox) return;
+    
+    // 1. Initialize RevenueCat Purchases SDK
+    void configurePurchases(user.id);
+    
+    // 2. Initial entitlement check
+    void checkProEntitlement().then((hasPro) => {
+      if (hasPro && user.tier !== "pro") {
+        setUser((prev) => prev ? { ...prev, tier: "pro" } : null);
+      }
+    });
+
+    // 3. Register real-time CustomerInfo changes listener
+    const unsubscribe = addSubscriptionListener((customerInfo) => {
+      const hasPro = customerInfo.entitlements.active["StrategyLabs Pro"] !== undefined;
+      setUser((prev) => {
+        if (!prev) return null;
+        const targetTier = hasPro ? "pro" : prev.tier === "pro" ? "free" : prev.tier;
+        if (prev.tier !== targetTier) {
+          return { ...prev, tier: targetTier as UserTier };
+        }
+        return prev;
+      });
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [user?.id, isSandbox]);
 
   // Helper to fetch user tier from profile table. Writes to cache on success.
   const fetchUserTier = async (userId: string, email: string): Promise<AppUser> => {

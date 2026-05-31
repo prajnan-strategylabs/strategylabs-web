@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/core": "^8.3.4",
+    "@revenuecat/purchases-capacitor": "^13.1.4",
+    "@revenuecat/purchases-capacitor-ui": "^13.1.4",
     "@supabase/supabase-js": "^2.106.1",
     "autoprefixer": "^10.5.0",
     "class-variance-authority": "^0.7.1",
