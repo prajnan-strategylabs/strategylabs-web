@@ -147,7 +147,10 @@ export function AppLayout() {
       </aside>
 
       {/* ── MOBILE HEADER (TOP BAR) ── */}
-      <header className="md:hidden relative z-40 flex items-center justify-between px-5 pt-3 pb-2 bg-bg/80 backdrop-blur-md">
+      <header 
+        className="md:hidden relative z-40 flex items-center justify-between px-5 pb-2 bg-bg/85 backdrop-blur-md border-b border-line/45"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+      >
         <LogoLockup />
         <div className="flex items-center gap-2">
           <Pill tone="accent" className="!text-[9px]">
@@ -180,7 +183,10 @@ export function AppLayout() {
       </main>
 
       {/* ── MOBILE BOTTOM NAVIGATION BAR (floating pill, matches handoff design) ── */}
-      <nav className="md:hidden fixed bottom-4 left-4 right-4 z-40">
+      <nav 
+        className="md:hidden fixed left-4 right-4 z-40"
+        style={{ bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
+      >
         <div
           className="rounded-2xl border bg-bg-card/70 backdrop-blur-md flex items-center justify-around h-[60px] px-2"
           style={{
