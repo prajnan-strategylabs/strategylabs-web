@@ -106,6 +106,37 @@ export function useBinanceTradeStreams(
       }),
     );
 
+    // Local buffer to accumulate ticks between flushes
+    const pendingUpdates = new Map<string, number>();
+
+    const flushUpdates = () => {
+      if (pendingUpdates.size === 0) return;
+      setTicks((prevState) => {
+        const next = { ...prevState };
+        pendingUpdates.forEach((p, sym) => {
+          const prev = lastPriceRef.current.get(sym);
+          lastPriceRef.current.set(sym, p);
+          next[sym] = {
+            price: p,
+            lastTickAt: Date.now(),
+            tickDir:
+              prev == null
+                ? "flat"
+                : p > prev
+                  ? "up"
+                  : p < prev
+                    ? "down"
+                    : "flat",
+          };
+        });
+        pendingUpdates.clear();
+        return next;
+      });
+    };
+
+    // Flush updates every 100ms to keep it snappy but extremely smooth
+    const flushInterval = window.setInterval(flushUpdates, 100);
+
     const url = `wss://stream.binance.com:9443/stream?streams=${streams.join("/")}`;
 
     const connect = () => {
@@ -124,23 +155,9 @@ export function useBinanceTradeStreams(
           if (!sym || !priceStr) return;
           const p = parseFloat(priceStr);
           if (!Number.isFinite(p)) return;
-          const prev = lastPriceRef.current.get(sym);
-          lastPriceRef.current.set(sym, p);
-          setTicks((prevState) => ({
-            ...prevState,
-            [sym]: {
-              price: p,
-              lastTickAt: Date.now(),
-              tickDir:
-                prev == null
-                  ? "flat"
-                  : p > prev
-                    ? "up"
-                    : p < prev
-                      ? "down"
-                      : "flat",
-            },
-          }));
+
+          // Queue the update to be flushed on the next interval tick
+          pendingUpdates.set(sym, p);
         } catch {
           /* malformed frame — ignore */
         }
@@ -161,6 +178,7 @@ export function useBinanceTradeStreams(
 
     return () => {
       cancelled = true;
+      window.clearInterval(flushInterval);
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
       if (ws) {
         ws.onclose = null;
