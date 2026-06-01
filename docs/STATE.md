@@ -22,7 +22,7 @@
 - [x] Hero section with email capture
 - [x] Proof section: 4 stat cards + 8-year equity curve (custom SVG, no chart lib)
 - [x] How-it-works: 4-step explainer
-- [x] Pricing: 4 tiers (Free → Explorer $19 → Trader $59 → Auto $249)
+- [x] Pricing: 3 tiers (Free → Trader → Auto)
 - [x] Footer with legal disclaimers, brand links, custom X/GitHub SVGs
 - [x] Dark theme baked in, mobile-responsive
 - [x] OG tags + Twitter meta in `index.html`

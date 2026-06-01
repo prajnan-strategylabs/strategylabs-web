@@ -48,20 +48,34 @@ export function LiveCallRow({
 
   // Hold duration: entry → exit (closed) OR entry → now (open)
   const holdLabel = (() => {
+    const formatDuration = (ms: number) => {
+      const minutes = Math.floor(ms / 60_000);
+      if (minutes < 60) return `${Math.max(1, minutes)}m`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h`;
+      return `${Math.round(hours / 24)}d`;
+    };
+
     const ms = (() => {
       try {
         const start = new Date(call.entry_time).getTime();
-        const end = isOpen
-          ? Date.now()
-          : new Date(call.exit_time ?? call.entry_time).getTime();
+        const end = isOpen ? Date.now() : call.exit_time ? new Date(call.exit_time).getTime() : null;
+        if (end == null || Number.isNaN(end)) return null;
         return Math.max(0, end - start);
       } catch {
-        return 0;
+        return null;
       }
     })();
-    const hours = Math.floor(ms / 3_600_000);
-    if (hours < 24) return `${Math.max(1, hours)}h`;
-    return `${Math.round(hours / 24)}d`;
+
+    if (ms != null) return formatDuration(ms);
+
+    if (!isOpen && call.hold_hours != null) {
+      return formatDuration(call.hold_hours * 3_600_000);
+    }
+    if (!isOpen && call.hold_days != null) {
+      return `${Math.max(1, call.hold_days)}d`;
+    }
+    return "—";
   })();
 
   // ── Live unrealized return for open positions ─────────────────────────

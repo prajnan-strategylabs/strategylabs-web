@@ -8,7 +8,9 @@ import {
 } from "lucide-react";
 import {
   apiGetV22Stats,
+  apiGetV22History,
   type V22Stats,
+  type V22RecentCall,
 } from "../lib/api";
 import { EquityCurve, LiveDot, Pill } from "../components/MobileUI";
 import DigitRoller from "../components/DigitRoller";
@@ -17,7 +19,12 @@ import { LiveSignalDrawer } from "../components/LiveSignalDrawer";
 import { HistoryDrawer } from "../components/HistoryDrawer";
 import { useBinanceTradeStreams } from "../lib/useBinanceStreams";
 import { useAuth } from "../context/AuthContext";
-import { getSubscriptionOfferings, purchaseSubscriptionPackage, type RCProductOfferings } from "../lib/purchases";
+import {
+  findPackageForPlan,
+  getSubscriptionOfferings,
+  purchaseSubscriptionPackage,
+  type RCProductOfferings,
+} from "../lib/purchases";
 import { showInterstitial } from "../lib/ads";
 
 // Modular Sub-components Imports
@@ -29,10 +36,7 @@ import { RecentWinChip } from "./signals/RecentWinChip";
 import { HeroSkeleton } from "./signals/HeroSkeleton";
 
 /* ────────────────────────────────────────────────────────────────────────
-   Pricing — 3 visible tiers (Free / Trader / Auto). The 5-tier UserTier
-   type stays wide for back-compat with existing users on legacy tiers
-   (explorer / pro); the UI just collapses them visually onto the nearest
-   visible tier via `currentTierForDisplay()` below.
+   Pricing — 3 visible tiers (Free / Trader / Auto).
    ──────────────────────────────────────────────────────────────────────── */
 const PLANS: Plan[] = [
   {
@@ -48,8 +52,9 @@ const PLANS: Plan[] = [
   {
     id: "trader",
     name: "Trader",
-    price: "$49",
-    monthly: 49,
+    price: "$19.99",
+    monthly: 19.99,
+    annual: 149.99,
     per: "/mo",
     note: "Realtime · the moat unlocks here",
     features: [
@@ -64,8 +69,9 @@ const PLANS: Plan[] = [
   {
     id: "auto",
     name: "Auto",
-    price: "$149",
-    monthly: 149,
+    price: "$49.99",
+    monthly: 49.99,
+    annual: 399.99,
     per: "/mo",
     note: "Hands-off automation",
     features: [
@@ -79,13 +85,13 @@ const PLANS: Plan[] = [
 ];
 type PlanId = Plan["id"];
 
-/** Map a UserTier (which may include legacy explorer/pro) to the visible
- *  tier it should display as on the Signals page. */
+function formatUsd(value: number): string {
+  const rounded = Math.round(value * 100) / 100;
+  return rounded % 1 === 0 ? `$${rounded.toFixed(0)}` : `$${rounded.toFixed(2)}`;
+}
+
 function visibleTierFor(tier: string): PlanId {
   if (tier === "trader" || tier === "free" || tier === "auto") return tier;
-  // Legacy: explorer was $19 → roll up to Trader. pro was $99 → roll up to Auto.
-  if (tier === "explorer") return "trader";
-  if (tier === "pro") return "auto";
   return "free";
 }
 
@@ -94,8 +100,9 @@ export function Signals() {
 }
 
 function SignalsBody() {
-  const { user } = useAuth();
+  const { user, tierResolved } = useAuth();
   const currentTier = visibleTierFor(user?.tier ?? "free");
+  const tierLabel = (user?.tier ?? currentTier).toUpperCase();
   const isPaid = currentTier !== "free";
 
   const [data, setData] = useState<V22Stats | null>(null);
@@ -107,12 +114,13 @@ function SignalsBody() {
   const [animYears, setAnimYears] = useState(false);
   const [selectedCall, setSelectedCall] = useState<V22Stats["recent_calls"][number] | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [paidClosedCalls, setPaidClosedCalls] = useState<V22RecentCall[] | null>(null);
 
-  const handleSelectCall = async (c: V22Stats["recent_calls"][number]) => {
-    if (!isPaid) {
-      await showInterstitial();
-    }
+  const handleSelectCall = (c: V22Stats["recent_calls"][number]) => {
     setSelectedCall(c);
+    if (!isPaid) {
+      void showInterstitial();
+    }
   };
 
   // Re-fetch every 60s so "Live calls" stays fresh as the CSV is updated
@@ -141,6 +149,40 @@ function SignalsBody() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!data || !tierResolved || !isPaid) {
+      setPaidClosedCalls(null);
+      return;
+    }
+
+    let cancelled = false;
+    async function loadClosedHistory() {
+      try {
+        const history = await apiGetV22History({ limit: 50 });
+        if (!cancelled) {
+          setPaidClosedCalls(
+            history.trades
+              .filter((c) => c.status !== "open")
+              .sort(
+                (a, b) =>
+                  new Date(b.exit_time ?? b.entry_time).getTime() -
+                  new Date(a.exit_time ?? a.entry_time).getTime(),
+              )
+              .slice(0, 10),
+          );
+        }
+      } catch (e) {
+        console.error("Failed to load closed signal history", e);
+        if (!cancelled) setPaidClosedCalls([]);
+      }
+    }
+
+    void loadClosedHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, [data, tierResolved, isPaid]);
+
   // Trigger year-bar animation once data lands
   useEffect(() => {
     if (data) {
@@ -165,6 +207,8 @@ function SignalsBody() {
 
   const [rcOfferings, setRcOfferings] = useState<RCProductOfferings | null>(null);
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
+  const [purchaseBusy, setPurchaseBusy] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadOfferings() {
@@ -178,78 +222,35 @@ function SignalsBody() {
     loadOfferings();
   }, []);
 
+  useEffect(() => {
+    setPurchaseError(null);
+  }, [plan, billing]);
+
   const dynamicPlans = useMemo(() => {
     return PLANS.map((p) => {
       if (!rcOfferings?.rawOfferings?.current) {
         // Fallback simulation for Web / Sandbox
         if (billing === "yearly" && p.id !== "free") {
-          const yearlyRate = Math.round(p.monthly * 0.8);
+          const yearlyRate = (p.annual ?? p.monthly * 12 * 0.8) / 12;
           return {
             ...p,
-            price: `$${yearlyRate}`,
+            price: formatUsd(yearlyRate),
             per: "/mo, billed annually"
           };
         }
         return p;
       }
       const currentOffering = rcOfferings.rawOfferings.current;
-      
-      let pkg: any = null;
-      if (p.id === "trader") {
-        if (billing === "yearly") {
-          pkg = currentOffering.annual || null;
-          if (!pkg) {
-            pkg = currentOffering.availablePackages?.find((pkg: any) => 
-              (pkg.identifier.toLowerCase().includes("trader") || pkg.product.identifier.toLowerCase().includes("trader")) &&
-              (pkg.identifier.toLowerCase().includes("year") || pkg.identifier.toLowerCase().includes("annual") ||
-               pkg.product.identifier.toLowerCase().includes("year") || pkg.product.identifier.toLowerCase().includes("annual"))
-            ) || null;
-          }
-        } else {
-          pkg = currentOffering.monthly || null;
-          if (!pkg) {
-            pkg = currentOffering.availablePackages?.find((pkg: any) => 
-              (pkg.identifier.toLowerCase().includes("trader") || pkg.product.identifier.toLowerCase().includes("trader")) &&
-              (pkg.identifier.toLowerCase().includes("month") || pkg.product.identifier.toLowerCase().includes("month"))
-            ) || null;
-          }
-        }
-        
-        // General fallback for trader plan
-        if (!pkg) {
-          pkg = currentOffering.monthly || currentOffering.annual || null;
-        }
-      } else if (p.id === "auto") {
-        if (billing === "yearly") {
-          pkg = currentOffering.availablePackages?.find((pkg: any) => 
-            (pkg.identifier.toLowerCase().includes("auto") || pkg.product.identifier.toLowerCase().includes("auto")) &&
-            (pkg.identifier.toLowerCase().includes("year") || pkg.identifier.toLowerCase().includes("annual") ||
-             pkg.product.identifier.toLowerCase().includes("year") || pkg.product.identifier.toLowerCase().includes("annual"))
-          ) || null;
-        } else {
-          pkg = currentOffering.availablePackages?.find((pkg: any) => 
-            (pkg.identifier.toLowerCase().includes("auto") || pkg.product.identifier.toLowerCase().includes("auto")) &&
-            (pkg.identifier.toLowerCase().includes("month") || pkg.product.identifier.toLowerCase().includes("month"))
-          ) || null;
-        }
-
-        // General fallback for auto plan
-        if (!pkg) {
-          pkg = currentOffering.availablePackages?.find((pkg: any) => 
-            pkg.identifier.toLowerCase().includes("auto") || 
-            pkg.product.identifier.toLowerCase().includes("auto")
-          ) || null;
-        }
-      }
+      const pkg = findPackageForPlan(
+        currentOffering.availablePackages,
+        p.id,
+        billing,
+      );
 
       if (pkg && pkg.product) {
-        const isYearly = pkg.packageType === "ANNUAL" || 
-                         pkg.identifier.toLowerCase().includes("year") || 
-                         pkg.product.identifier.toLowerCase().includes("year") || 
-                         pkg.identifier.toLowerCase().includes("annual") || 
-                         pkg.product.identifier.toLowerCase().includes("annual");
-        const priceString = isYearly 
-          ? `$${Math.round(pkg.product.price / 12)}`
+        const isYearly = billing === "yearly";
+        const priceString = isYearly
+          ? formatUsd(pkg.product.price / 12)
           : pkg.product.priceString;
         return {
           ...p,
@@ -265,6 +266,8 @@ function SignalsBody() {
   const selectedPlan = dynamicPlans.find((p) => p.id === plan)!;
 
   const handleCtaClick = async () => {
+    if (purchaseBusy) return;
+
     const isCurrent = selectedPlan.id === currentTier;
     if (isCurrent) return;
 
@@ -274,14 +277,42 @@ function SignalsBody() {
     }
 
     try {
+      setPurchaseBusy(true);
+      setPurchaseError(null);
       const purchased = await purchaseSubscriptionPackage(selectedPlan.id, billing);
       if (purchased) {
         window.location.reload();
+        return;
       }
+      setPurchaseError("Purchase was not completed. If the Play Store did not open, check the subscription product setup.");
     } catch (e) {
       console.error("Purchase error", e);
+      setPurchaseError(e instanceof Error ? e.message : "Purchase failed. Please try again.");
+    } finally {
+      setPurchaseBusy(false);
     }
   };
+  const executionCalls = useMemo(
+    () =>
+      [...(data?.recent_calls ?? [])].sort((a, b) => {
+        if (a.status === "open" && b.status !== "open") return -1;
+        if (a.status !== "open" && b.status === "open") return 1;
+        return new Date(b.entry_time).getTime() - new Date(a.entry_time).getTime();
+      }),
+    [data?.recent_calls],
+  );
+  const closedCalls = useMemo(
+    () =>
+      (paidClosedCalls ?? data?.recent_calls ?? [])
+        .filter((c) => c.status !== "open")
+        .sort(
+          (a, b) =>
+            new Date(b.exit_time ?? b.entry_time).getTime() -
+            new Date(a.exit_time ?? a.entry_time).getTime(),
+        ),
+    [data?.recent_calls, paidClosedCalls],
+  );
+
   const liveSinceLabel = useMemo(() => {
     if (!data?.live_since) return "";
     try {
@@ -311,10 +342,14 @@ function SignalsBody() {
             />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight">Pro Signals</h1>
+            <h1 className="text-xl font-extrabold tracking-tight">
+              {isPaid ? "Signals" : "Live Signals"}
+            </h1>
             <div className="text-[11px] text-ink-muted flex items-center gap-1.5">
-              <LiveDot size={5} /> verified ·{" "}
-              {data ? data.total_trades.toLocaleString() : "—"} trades
+              <LiveDot size={5} />{" "}
+              {isPaid
+                ? `${openCalls.length} active · ${closedCalls.length} closed`
+                : `verified · ${data ? data.total_trades.toLocaleString() : "—"} trades`}
             </div>
           </div>
         </div>
@@ -329,9 +364,7 @@ function SignalsBody() {
               <span className="hidden sm:inline">History</span>
             </button>
           )}
-          <Pill tone="accent">
-            audited
-          </Pill>
+          <Pill tone="accent">{isPaid ? tierLabel : "audited"}</Pill>
         </div>
       </header>
 
@@ -350,10 +383,82 @@ function SignalsBody() {
         </div>
       )}
 
-      {loading && <HeroSkeleton />}
+      {(loading || !tierResolved) && <HeroSkeleton />}
 
-      {data && (
+      {data && tierResolved && (
         <>
+          {isPaid ? (
+            <>
+              <section>
+                <div className="flex items-end justify-between mb-2 gap-2">
+                  <div className="min-w-0">
+                    <h2 className="text-[13px] font-bold tracking-tight flex items-center gap-1.5">
+                      <LiveDot size={5} /> Open positions
+                    </h2>
+                    <div className="text-[10px] text-ink-muted truncate">
+                      Live P&L ticks every Binance trade
+                    </div>
+                  </div>
+                  <ScannerHeartbeat scanner={data.scanner} />
+                </div>
+
+                <div className="space-y-2">
+                  {openCalls.length === 0 ? (
+                    <div className="rounded-xl border border-line/60 bg-bg-card/30 p-3 text-[11px] text-ink-muted">
+                      No open positions right now. New entries appear here as soon as the scanner fires.
+                    </div>
+                  ) : (
+                    openCalls.map((c, i) => (
+                      <LiveCallRow
+                        key={`open-${c.id ?? i}`}
+                        call={c}
+                        tick={c.symbol ? liveTicks[c.symbol] : undefined}
+                        onSelect={() => handleSelectCall(c)}
+                      />
+                    ))
+                  )}
+                </div>
+              </section>
+
+              <section>
+                <div className="flex items-end justify-between mb-2 gap-2">
+                  <div className="min-w-0">
+                    <h2 className="text-[13px] font-bold tracking-tight">
+                      Latest closed trades
+                    </h2>
+                    <div className="text-[10px] text-ink-muted truncate">
+                      Recent completed signals from the audit log
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {closedCalls.length === 0 ? (
+                    <div className="text-[11px] text-ink-subtle italic px-1">
+                      No closed trades yet.
+                    </div>
+                  ) : (
+                    closedCalls.map((c, i) => (
+                      <LiveCallRow
+                        key={c.id ?? i}
+                        call={c}
+                        tick={c.symbol ? liveTicks[c.symbol] : undefined}
+                        onSelect={() => handleSelectCall(c)}
+                      />
+                    ))
+                  )}
+                </div>
+              </section>
+
+              <ConnectTelegram />
+
+              <p className="text-[10px] text-ink-subtle leading-relaxed pt-1">
+                Signal alerts are for educational use. Past performance does
+                not guarantee future results.
+              </p>
+            </>
+          ) : (
+            <>
           {/* ── Hero: cumulative return ── */}
           <div className="relative overflow-hidden rounded-2xl border border-line/70 bg-bg-card/40 backdrop-blur-sm">
             <div
@@ -423,74 +528,35 @@ function SignalsBody() {
             </div>
           </div>
 
-          {/* ── Open positions callout — paid only, only when there are any ── */}
-          {isPaid && openCalls.length > 0 && (
-            <section>
-              <div className="flex items-end justify-between mb-2">
-                <div>
-                  <h2 className="text-[13px] font-bold tracking-tight flex items-center gap-1.5">
-                    <LiveDot size={5} /> Open positions
-                  </h2>
-                  <div className="text-[10px] text-ink-muted">
-                    {openCalls.length} active · live PnL ticks every Binance trade
-                  </div>
+          {/* ── Live-calls feed + Track record — UPSELL only ── */}
+          <section>
+            <div className="flex items-end justify-between mb-2 gap-2">
+              <div className="min-w-0">
+                <h2 className="text-[13px] font-bold tracking-tight flex items-center gap-1.5">
+                  <LiveDot size={5} /> Live calls
+                </h2>
+                <div className="text-[10px] text-ink-muted truncate">
+                  Last {executionCalls.length} V22 entries · upgrade for the full feed
                 </div>
               </div>
-              <div className="space-y-2">
-                {openCalls.map((c, i) => (
+              <ScannerHeartbeat scanner={data.scanner} />
+            </div>
+            <div className="space-y-2">
+              {executionCalls.length === 0 ? (
+                <div className="text-[11px] text-ink-subtle italic px-1">
+                  Scanner warming up — first V22 cycle in progress…
+                </div>
+              ) : (
+                executionCalls.map((c, i) => (
                   <LiveCallRow
-                    key={`open-${c.id ?? i}`}
+                    key={c.id ?? i}
                     call={c}
                     tick={c.symbol ? liveTicks[c.symbol] : undefined}
                     onSelect={() => handleSelectCall(c)}
                   />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* ── Live-calls feed + Track record — UPSELL only (paid users access via History drawer) ── */}
-          {!isPaid && (
-          <>
-          <section>
-            {(() => {
-              const sortedCalls = [...data.recent_calls].sort((a, b) => {
-                if (a.status === "open" && b.status !== "open") return -1;
-                if (a.status !== "open" && b.status === "open") return 1;
-                return 0;
-              });
-              return (
-                <>
-                  <div className="flex items-end justify-between mb-2 gap-2">
-                    <div className="min-w-0">
-                      <h2 className="text-[13px] font-bold tracking-tight flex items-center gap-1.5">
-                        <LiveDot size={5} /> Live calls
-                      </h2>
-                      <div className="text-[10px] text-ink-muted truncate">
-                        Last {sortedCalls.length} V22 entries · upgrade for the full feed
-                      </div>
-                    </div>
-                    <ScannerHeartbeat scanner={data.scanner} />
-                  </div>
-                  <div className="space-y-2">
-                    {sortedCalls.length === 0 ? (
-                      <div className="text-[11px] text-ink-subtle italic px-1">
-                        Scanner warming up — first V22 cycle in progress…
-                      </div>
-                    ) : (
-                      sortedCalls.map((c, i) => (
-                        <LiveCallRow
-                          key={c.id ?? i}
-                          call={c}
-                          tick={c.symbol ? liveTicks[c.symbol] : undefined}
-                          onSelect={() => handleSelectCall(c)}
-                        />
-                      ))
-                    )}
-                  </div>
-                </>
-              );
-            })()}
+                ))
+              )}
+            </div>
           </section>
 
           <section className="rounded-2xl border border-line/60 bg-bg-card/30 p-4">
@@ -509,15 +575,11 @@ function SignalsBody() {
             </div>
             <YearBars years={data.year_breakdown} animate={animYears} />
           </section>
-          </>
-          )}
 
           {/* ── Connect Telegram (gated feature) ── */}
           <ConnectTelegram />
 
-          {/* ── Plan picker + CTA — UPSELL ONLY (hidden for paid users) ── */}
-          {!isPaid && (
-          <>
+          {/* ── Plan picker + CTA — UPSELL ONLY ── */}
           <section className="space-y-2.5">
             <div className="flex items-center justify-between">
               <h2 className="text-[13px] font-bold tracking-tight">
@@ -577,61 +639,55 @@ function SignalsBody() {
             const isFreePlan = selectedPlan.id === "free";
 
             return (
-              <button
-                disabled={isCurrent}
-                onClick={handleCtaClick}
-                className="w-full h-14 rounded-2xl font-extrabold text-[14px] flex items-center justify-center gap-2 active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
-                style={{
-                  background: isCurrent ? "var(--bg-elev)" : "var(--accent)",
-                  color: isCurrent ? "var(--ink-muted)" : "var(--bg)",
-                  boxShadow: isCurrent
-                    ? "none"
-                    : "0 10px 40px rgba(34,211,170,0.25)",
-                  border: isCurrent ? "1px solid var(--line)" : "none",
-                }}
-              >
-                {!isCurrent && <Zap className="h-4 w-4" />}
-                {isCurrent
-                  ? `You're on ${selectedPlan.name}`
-                  : isFreePlan
-                    ? "Continue on Free"
-                    : isUpgrade
-                      ? `Start 7-day trial`
-                      : `Switch to ${selectedPlan.name}`}
-                {!isCurrent && !isFreePlan && (
-                  <span className="opacity-70 text-[12px]">
-                    — then {selectedPlan.price}
-                    {selectedPlan.per}
+              <div className="space-y-2">
+                <button
+                  disabled={isCurrent || purchaseBusy}
+                  onClick={handleCtaClick}
+                  className="w-full min-h-14 rounded-2xl px-4 py-3 font-extrabold text-[14px] flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{
+                    background: isCurrent ? "var(--bg-elev)" : "var(--accent)",
+                    color: isCurrent ? "var(--ink-muted)" : "var(--bg)",
+                    boxShadow: isCurrent
+                      ? "none"
+                      : "0 10px 40px rgba(34,211,170,0.25)",
+                    border: isCurrent ? "1px solid var(--line)" : "none",
+                  }}
+                >
+                  {!isCurrent && <Zap className="h-4 w-4 flex-none" />}
+                  <span>
+                    {purchaseBusy
+                      ? "Opening Play Store..."
+                      : isCurrent
+                        ? `You're on ${selectedPlan.name}`
+                        : isFreePlan
+                          ? "Continue on Free"
+                          : isUpgrade
+                            ? `Start 7-day trial`
+                            : `Switch to ${selectedPlan.name}`}
                   </span>
+                  {!isCurrent && !isFreePlan && !purchaseBusy && (
+                    <span className="opacity-70 text-[12px]">
+                      then {selectedPlan.price}
+                      {selectedPlan.per}
+                    </span>
+                  )}
+                </button>
+                {purchaseError && (
+                  <div
+                    className="rounded-xl border px-3 py-2 text-[11px] leading-relaxed"
+                    style={{
+                      borderColor: "rgba(239,68,68,0.35)",
+                      background: "rgba(239,68,68,0.06)",
+                      color: "#fecdd3",
+                    }}
+                  >
+                    {purchaseError}
+                  </div>
                 )}
-              </button>
+              </div>
             );
           })()}
-          </>
-          )}
-
-          {/* ── Subtle Trader → Auto nudge for already-paid users ── */}
-          {currentTier === "trader" && (
-            <div className="rounded-xl border border-line/40 bg-bg-card/20 p-3 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-[11px] font-bold text-ink">
-                  Auto-execute trades on Binance / Bybit
-                </div>
-                <div className="text-[10px] text-ink-muted">
-                  Auto tier · $149/mo · webhook outputs + unlimited slots
-                </div>
-              </div>
-              <button
-                className="text-[10px] font-bold whitespace-nowrap flex items-center gap-1 px-3 py-1.5 rounded-lg border border-line/60 hover:border-line hover:text-ink transition active:scale-95"
-                style={{ color: "var(--accent)" }}
-              >
-                Upgrade <ChevronRight className="h-3 w-3" />
-              </button>
-            </div>
-          )}
-
-          {/* ── Recent wins — UPSELL ONLY (paid users access via History drawer) ── */}
-          {!isPaid && (
+          {/* ── Recent wins — UPSELL ONLY ── */}
             <section>
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-[13px] font-bold tracking-tight">
@@ -647,12 +703,13 @@ function SignalsBody() {
                 ))}
               </div>
             </section>
-          )}
 
           <p className="text-[10px] text-ink-subtle leading-relaxed pt-1">
             Track record computed from the V22 audit log. Past performance does
             not guarantee future results.
           </p>
+            </>
+          )}
         </>
       )}
 

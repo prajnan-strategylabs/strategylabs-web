@@ -237,7 +237,7 @@ export function AdminDashboard() {
               className="flex flex-col justify-between p-4 rounded-xl border border-line bg-bg-elev/20 hover:bg-bg-elev/45 hover:border-amber-500/30 transition-all group"
             >
               <span className="text-xs font-bold text-ink group-hover:text-amber-500 transition-colors">Subscription Tiers</span>
-              <span className="text-[10px] text-ink-subtle mt-1 font-mono">Manage trader/pro permissions</span>
+              <span className="text-[10px] text-ink-subtle mt-1 font-mono">Manage trader/auto permissions</span>
             </Link>
           </div>
         </div>

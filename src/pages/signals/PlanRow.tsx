@@ -2,10 +2,11 @@ import { CheckCircle2 } from "lucide-react";
 import { Pill } from "../../components/MobileUI";
 
 export interface Plan {
-  id: "free" | "explorer" | "trader" | "pro" | "auto";
+  id: "free" | "trader" | "auto";
   name: string;
   price: string;
   monthly: number;
+  annual?: number;
   per: string;
   note: string;
   features: string[];

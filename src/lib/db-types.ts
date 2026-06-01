@@ -37,7 +37,7 @@ export type Database = {
           id: string;                  // matches auth.users.id
           email: string;
           display_name: string | null;
-          tier: "free" | "explorer" | "trader" | "pro" | "auto";
+          tier: "free" | "trader" | "auto";
           tier_status: "active" | "trialing" | "past_due" | "canceled" | null;
           tier_renews_at: string | null;
           created_at: string;
@@ -46,11 +46,11 @@ export type Database = {
           id: string;
           email: string;
           display_name?: string | null;
-          tier?: "free" | "explorer" | "trader" | "pro" | "auto";
+          tier?: "free" | "trader" | "auto";
         };
         Update: Partial<{
           display_name: string | null;
-          tier: "free" | "explorer" | "trader" | "pro" | "auto";
+          tier: "free" | "trader" | "auto";
           tier_status: "active" | "trialing" | "past_due" | "canceled" | null;
           tier_renews_at: string | null;
         }>;

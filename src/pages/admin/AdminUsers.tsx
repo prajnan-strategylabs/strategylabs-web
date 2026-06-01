@@ -105,12 +105,8 @@ export function AdminUsers() {
   const getTierBadgeStyle = (tier: string) => {
     const base = "px-2.5 py-0.5 rounded-full border text-[9px] font-black uppercase font-mono tracking-wider";
     switch (tier.toLowerCase()) {
-      case "explorer":
-        return `${base} bg-blue-500/10 border-blue-500/25 text-blue-400`;
       case "trader":
         return `${base} bg-amber-500/10 border-amber-500/25 text-amber-400`;
-      case "pro":
-        return `${base} bg-purple-500/10 border-purple-500/25 text-purple-400`;
       case "auto":
         return `${base} bg-emerald-500/10 border-emerald-500/25 text-emerald-400`;
       default:
@@ -192,10 +188,8 @@ export function AdminUsers() {
                           className="rounded-lg bg-bg-elev/40 border border-line px-2.5 py-1.5 text-ink-muted hover:text-ink font-bold text-[10px] focus:ring-1 focus:ring-amber-500/50 cursor-pointer outline-none transition-all uppercase"
                         >
                           <option value="free" className="bg-[#0f1525] text-slate-400 font-semibold font-sans">Free</option>
-                          <option value="explorer" className="bg-[#0f1525] text-blue-400 font-semibold font-sans">Explorer</option>
-                          <option value="trader" className="bg-[#0f1525] text-amber-400 font-semibold font-sans">Trader ($49)</option>
-                          <option value="pro" className="bg-[#0f1525] text-purple-400 font-semibold font-sans">Pro ($99)</option>
-                          <option value="auto" className="bg-[#0f1525] text-emerald-400 font-semibold font-sans">Auto ($149)</option>
+                          <option value="trader" className="bg-[#0f1525] text-amber-400 font-semibold font-sans">Trader ($19.99)</option>
+                          <option value="auto" className="bg-[#0f1525] text-emerald-400 font-semibold font-sans">Auto ($49.99)</option>
                         </select>
                       </td>
                     </tr>
@@ -241,9 +235,7 @@ export function AdminUsers() {
                     className="rounded-lg bg-bg-elev/45 border border-line px-3 py-1.5 text-[10px] font-mono text-ink focus:ring-1 focus:ring-amber-500/50 cursor-pointer outline-none uppercase"
                   >
                     <option value="free" className="bg-[#0f1525] text-slate-400">Free</option>
-                    <option value="explorer" className="bg-[#0f1525] text-blue-400">Explorer</option>
                     <option value="trader" className="bg-[#0f1525] text-amber-400">Trader</option>
-                    <option value="pro" className="bg-[#0f1525] text-purple-400">Pro</option>
                     <option value="auto" className="bg-[#0f1525] text-emerald-400">Auto</option>
                   </select>
                 </div>

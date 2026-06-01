@@ -16,7 +16,7 @@ const TIERS = [
   },
   {
     name: "Trader",
-    price: "$49",
+    price: "$19.99",
     sub: "per month",
     features: [
       "Realtime V22 signals",
@@ -30,7 +30,7 @@ const TIERS = [
   },
   {
     name: "Auto",
-    price: "$149",
+    price: "$49.99",
     sub: "per month",
     features: [
       "Everything in Trader",
@@ -68,7 +68,7 @@ export function Pricing() {
         </div>
 
         <p className="mt-8 text-center text-xs text-ink-subtle">
-          Annual plans available with 20% off. All prices in USD. Cancel anytime.
+          Annual plans available: Trader $149.99/year and Auto $399.99/year. All prices in USD. Cancel anytime.
         </p>
       </div>
     </section>

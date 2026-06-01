@@ -239,6 +239,7 @@ export interface V22RecentCall {
   pnl?: number | null;
   strategy?: "S3" | "S5";
   hold_days?: number;
+  hold_hours?: number;
   when_ago: string;
   entry_time: string;
   exit_time?: string | null;
@@ -370,7 +371,7 @@ export interface TelegramStatus {
   verified_at: string | null;
   last_sent_at: string | null;
   bot_username: string | null;
-  signal_min_tier: "free" | "explorer" | "trader" | "pro" | "auto";
+  signal_min_tier: "free" | "trader" | "auto";
 }
 
 export interface TelegramLink {
@@ -602,4 +603,3 @@ export async function apiAnalyzeBacktest(
 export async function apiListBacktests(token: string): Promise<any[]> {
   return get<any[]>("/api/v1/backtests", token);
 }
-

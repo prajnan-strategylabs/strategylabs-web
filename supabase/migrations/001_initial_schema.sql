@@ -58,7 +58,7 @@ create table if not exists public.profiles (
   email           text        not null unique,
   display_name    text        null,
   tier            text        not null default 'free'
-                              check (tier in ('free','explorer','trader','pro','auto')),
+                              check (tier in ('free','trader','auto')),
   tier_status     text        null
                               check (tier_status in ('active','trialing','past_due','canceled')),
   tier_renews_at  timestamptz null,

@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase, supabaseReady } from "../lib/supabase";
 import { clearWaitlistCache } from "../lib/useWaitlistStatus";
-import { configurePurchases, checkProEntitlement, addSubscriptionListener } from "../lib/purchases";
+import { configurePurchases, determineActiveTier, addSubscriptionListener, tierFromCustomerInfo } from "../lib/purchases";
 
-export type UserTier = "free" | "explorer" | "trader" | "pro" | "auto";
+export type UserTier = "free" | "trader" | "auto";
 
 export interface AppUser {
   id: string;
@@ -40,7 +40,7 @@ function readCachedTier(uid: string): UserTier | null {
   try {
     const raw = window.localStorage.getItem(TIER_CACHE_KEY(uid));
     if (!raw) return null;
-    if (raw === "free" || raw === "explorer" || raw === "trader" || raw === "pro" || raw === "auto") {
+    if (raw === "free" || raw === "trader" || raw === "auto") {
       return raw;
     }
     return null;
@@ -54,6 +54,9 @@ function writeCachedTier(uid: string, tier: UserTier): void {
   } catch {
     /* private mode / quota — fine to skip */
   }
+}
+function normalizeTier(tier: unknown): UserTier {
+  return tier === "trader" || tier === "auto" ? tier : "free";
 }
 function clearAllTierCache(): void {
   try {
@@ -82,8 +85,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void configurePurchases(user.id);
     
     // 2. Initial entitlement check
-    void checkProEntitlement().then((hasPro) => {
-      const targetTier = hasPro ? "pro" : user.tier === "pro" ? "free" : user.tier;
+    void determineActiveTier().then((activeTier) => {
+      const targetTier = activeTier !== "free" ? activeTier : (user.tier === "trader" || user.tier === "auto") ? "free" : user.tier;
       if (user.tier !== targetTier) {
         setUser((prev) => prev ? { ...prev, tier: targetTier as UserTier } : null);
         if (supabaseReady && supabase) {
@@ -100,8 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // 3. Register real-time CustomerInfo changes listener
     const unsubscribe = addSubscriptionListener((customerInfo) => {
-      const hasPro = customerInfo.entitlements.active["StrategyLabs Pro"] !== undefined;
-      const targetTier = hasPro ? "pro" : user.tier === "pro" ? "free" : user.tier;
+      const targetTier = tierFromCustomerInfo(customerInfo);
       
       setUser((prev) => {
         if (!prev) return null;
@@ -141,7 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single();
 
         if (!error && data) {
-          const tier = data.tier as UserTier;
+          const tier = normalizeTier(data.tier);
           const display_name = data.display_name || undefined;
           writeCachedTier(userId, tier);
           if (display_name) {

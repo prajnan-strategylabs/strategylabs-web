@@ -24,16 +24,10 @@ import { StrategyDetail } from "../components/StrategyDetail";
 import { supabase } from "../lib/supabase";
 import { apiListStrategiesTyped, type Strategy } from "../lib/api";
 
-// 3-tier model (free / trader / auto). Legacy explorer/pro tiers stay in
-// the map for back-compat with any grandfathered users; they map onto the
-// closest sensible limits (explorer → trader-level, pro → auto-level).
 const TIER_CONFIG: Record<string, { limit: number; label: string }> = {
   free:     { limit: 1,    label: "Free Tier" },
   trader:   { limit: 10,   label: "Trader Tier" },
   auto:     { limit: 9999, label: "Auto Tier" },
-  // Legacy — keep entitlements intact for anyone already on these
-  explorer: { limit: 10,   label: "Trader Tier" },
-  pro:      { limit: 9999, label: "Auto Tier" },
 };
 
 /** UI shape derived from the API response — adds derived per-row fields. */
@@ -419,7 +413,7 @@ function DashboardHome({
                     <TrendingUp className="h-3 w-3" /> aggregate of {rows?.length}
                   </span>
                   <span className="text-ink-subtle">
-                    Pro feed is in <Link to="/signals" className="underline hover:text-ink">Signals</Link>
+                    Signal feed is in <Link to="/signals" className="underline hover:text-ink">Signals</Link>
                   </span>
                 </div>
               )}
@@ -517,7 +511,7 @@ function DashboardHome({
             </div>
             <ArrowRight className="h-4 w-4 text-ink-subtle group-hover:text-ink group-hover:translate-x-0.5 transition" />
           </div>
-          <div className="font-bold text-sm mt-3">Pro Signals</div>
+          <div className="font-bold text-sm mt-3">Live Signals</div>
           <div className="text-[11px] text-ink-muted">
             From V22 · not your strategies
           </div>

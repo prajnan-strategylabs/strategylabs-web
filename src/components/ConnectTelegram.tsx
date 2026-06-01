@@ -11,7 +11,7 @@ import {
 } from "../lib/api";
 import { Pill } from "./MobileUI";
 
-const TIER_ORDER = ["free", "explorer", "trader", "pro", "auto"] as const;
+const TIER_ORDER = ["free", "trader", "auto"] as const;
 
 function tierAtLeast(userTier: string, minTier: string): boolean {
   return TIER_ORDER.indexOf(userTier as any) >= TIER_ORDER.indexOf(minTier as any);
@@ -107,8 +107,7 @@ export function ConnectTelegram() {
   }
 
   const userTier = user.tier;
-  const rawMinTier = status?.signal_min_tier ?? "trader";
-  const minTier = rawMinTier === "explorer" ? "trader" : rawMinTier;
+  const minTier = status?.signal_min_tier ?? "trader";
   const hasAccess = tierAtLeast(userTier, minTier);
   const linked = !!status?.is_linked;
   const enabled = !!status?.enabled;

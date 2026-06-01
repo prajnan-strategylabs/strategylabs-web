@@ -60,9 +60,7 @@ const STARTER_IDEAS = [
 
 const TIER_LIMITS: Record<string, number> = {
   free: 1,
-  explorer: 3,
   trader: 5,
-  pro: 50,
   auto: 999999,
 };
 

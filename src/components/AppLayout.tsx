@@ -124,8 +124,8 @@ export function AppLayout() {
             className="rounded bg-yellow-500/20 border-none px-2 py-0.5 text-yellow-500 font-bold focus:ring-0 cursor-pointer outline-none"
           >
             <option value="free" className="bg-bg text-ink">Free</option>
-            <option value="trader" className="bg-bg text-ink">Trader ($49)</option>
-            <option value="auto" className="bg-bg text-ink">Auto ($149)</option>
+            <option value="trader" className="bg-bg text-ink">Trader ($19.99)</option>
+            <option value="auto" className="bg-bg text-ink">Auto ($49.99)</option>
           </select>
         </div>
       )}

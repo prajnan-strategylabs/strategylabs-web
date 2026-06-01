@@ -19,6 +19,9 @@ const AD_IDS = {
 
 let isInitialized = false;
 let bannerVisible = false;
+let interstitialInFlight = false;
+let lastInterstitialAt = 0;
+const INTERSTITIAL_COOLDOWN_MS = 60_000;
 
 /**
  * Initialize AdMob SDK. Safe to call multiple times.
@@ -107,6 +110,17 @@ export async function showInterstitial(): Promise<boolean> {
     return true;
   }
 
+  const now = Date.now();
+  if (interstitialInFlight) {
+    console.log("[AdMob] Interstitial already in flight. Skipping duplicate request.");
+    return false;
+  }
+  if (now - lastInterstitialAt < INTERSTITIAL_COOLDOWN_MS) {
+    console.log("[AdMob] Interstitial cooldown active. Skipping request.");
+    return false;
+  }
+
+  interstitialInFlight = true;
   try {
     await initializeAdMob();
     console.log("[AdMob] Preloading Interstitial Ad...");
@@ -117,9 +131,12 @@ export async function showInterstitial(): Promise<boolean> {
 
     console.log("[AdMob] Displaying Interstitial Ad...");
     await AdMob.showInterstitial();
+    lastInterstitialAt = Date.now();
     return true;
   } catch (error) {
     console.error("[AdMob] Failed to show Interstitial Ad:", error);
     return false;
+  } finally {
+    interstitialInFlight = false;
   }
 }

@@ -31,14 +31,46 @@ function timeAgo(iso: string | null | undefined, now = Date.now()): string {
   if (!iso) return "—";
   try {
     const ms = now - new Date(iso).getTime();
-    const s = Math.max(0, Math.round(ms / 1000));
-    if (s < 60) return `${s}s`;
-    if (s < 3600) return `${Math.round(s / 60)}m`;
-    if (s < 86400) return `${(s / 3600).toFixed(1)}h`;
-    return `${(s / 86400).toFixed(1)}d`;
+    return formatDurationMs(ms, { minOneMinute: false });
   } catch {
     return "—";
   }
+}
+
+function formatDurationMs(
+  ms: number,
+  options: { minOneMinute?: boolean } = {},
+): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return options.minOneMinute ? "1m" : `${s}s`;
+  if (s < 3600) return `${Math.max(1, Math.round(s / 60))}m`;
+  if (s < 86400) return `${(s / 3600).toFixed(1)}h`;
+  return `${(s / 86400).toFixed(1)}d`;
+}
+
+function getHeldDuration(call: V22RecentCall, isOpen: boolean): string {
+  try {
+    const start = new Date(call.entry_time).getTime();
+    const end = isOpen
+      ? Date.now()
+      : call.exit_time
+        ? new Date(call.exit_time).getTime()
+        : null;
+
+    if (!Number.isNaN(start) && end != null && !Number.isNaN(end)) {
+      return formatDurationMs(Math.max(0, end - start), { minOneMinute: true });
+    }
+  } catch {
+    // Fall through to stored hold fields.
+  }
+
+  if (!isOpen && call.hold_hours != null) {
+    return formatDurationMs(call.hold_hours * 3_600_000, { minOneMinute: true });
+  }
+  if (!isOpen && call.hold_days != null) {
+    return `${Math.max(1, call.hold_days)}d`;
+  }
+  return "—";
 }
 
 export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
@@ -118,37 +150,41 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
   const derived = useMemo(() => {
     if (!call) return null;
     const long = call.dir === "LONG";
-    const entry = call.entry ?? 0;
-    const sl = call.stop_loss ?? 0;
-    const tp1 = call.tp1 ?? 0;
+    const entry = call.entry ?? null;
+    const sl = call.stop_loss ?? null;
+    const tp1 = call.tp1 ?? null;
     const tp2 = call.tp2 ?? null;
-    const riskDist = Math.abs(entry - sl) || 1;
+    const riskDist = entry != null && sl != null ? Math.abs(entry - sl) : null;
 
     // Current mark: live for open, exit_price for closed
     const isOpen = call.status === "open";
     const mark =
       isOpen && livePrice != null
         ? livePrice
-        : call.exit_price ?? (call.ret_pct != null ? entry * (1 + (call.ret_pct / 100) * (long ? 1 : -1)) : null);
+        : call.exit_price ??
+          (call.ret_pct != null && entry != null
+            ? entry * (1 + (call.ret_pct / 100) * (long ? 1 : -1))
+            : null);
 
     // Unrealized / realized return %
     const retPct =
-      isOpen && livePrice != null && entry > 0
+      isOpen && livePrice != null && entry != null && entry > 0
         ? ((livePrice - entry) / entry) * (long ? 1 : -1) * 100
         : call.ret_pct ?? null;
 
     // R-multiple realized so far
     const r =
-      mark != null && entry > 0
+      mark != null && entry != null && entry > 0 && riskDist != null && riskDist > 0
         ? ((mark - entry) * (long ? 1 : -1)) / riskDist
         : null;
 
     // Progress between SL (0) and TP1 (1)
     const progress = (() => {
-      if (mark == null) return 0;
+      if (mark == null || sl == null || tp1 == null) return null;
       const lo = long ? sl : tp1;
       const hi = long ? tp1 : sl;
-      const denom = (hi - lo) || 1;
+      const denom = hi - lo;
+      if (denom === 0) return null;
       return Math.max(0, Math.min(1, (mark - lo) / denom));
     })();
 
@@ -174,6 +210,7 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
       retPct,
       r,
       progress,
+      hasTradeLevels: entry != null && sl != null && tp1 != null,
       riskUsd,
       unrealizedUsd,
     };
@@ -192,6 +229,7 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
     retPct,
     r,
     progress,
+    hasTradeLevels,
     riskUsd,
     unrealizedUsd,
   } = derived;
@@ -204,9 +242,10 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
         ? "var(--accent)"
         : "#fda4af";
 
+  const heldDuration = getHeldDuration(call, isOpen);
   const heldLabel = isOpen
-    ? `${timeAgo(call.entry_time)} running`
-    : `held ${timeAgo(call.entry_time, new Date(call.exit_time ?? call.entry_time).getTime())}`;
+    ? `${heldDuration} running`
+    : `held ${heldDuration}`;
 
   const outcomeLabel = (() => {
     if (isOpen) return "Live position";
@@ -412,56 +451,57 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
           `}</style>
         </div>
 
-        {/* ── Progress rail: SL → entry → TP ── */}
-        <div className="px-5 py-4 border-b border-line/40 space-y-2">
-          <div
-            className="relative h-2 rounded-full overflow-hidden"
-            style={{ background: "var(--line)" }}
-          >
+        {hasTradeLevels && progress != null && (
+          <div className="px-5 py-4 border-b border-line/40 space-y-2">
             <div
-              className="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
-              style={{
-                width: `${progress * 100}%`,
-                background: `linear-gradient(90deg, ${long ? "#fda4af" : "var(--accent)"} 0%, ${long ? "var(--accent)" : "#fda4af"} 100%)`,
-              }}
-            />
-            <div
-              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-3.5 rounded-full border-2 transition-all duration-300"
-              style={{
-                left: `${progress * 100}%`,
-                background: "var(--bg)",
-                borderColor: dirColor,
-                boxShadow: isOpen ? `0 0 12px ${dirColor}` : "none",
-              }}
-            />
+              className="relative h-2 rounded-full overflow-hidden"
+              style={{ background: "var(--line)" }}
+            >
+              <div
+                className="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
+                style={{
+                  width: `${progress * 100}%`,
+                  background: `linear-gradient(90deg, ${long ? "#fda4af" : "var(--accent)"} 0%, ${long ? "var(--accent)" : "#fda4af"} 100%)`,
+                }}
+              />
+              <div
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-3.5 rounded-full border-2 transition-all duration-300"
+                style={{
+                  left: `${progress * 100}%`,
+                  background: "var(--bg)",
+                  borderColor: dirColor,
+                  boxShadow: isOpen ? `0 0 12px ${dirColor}` : "none",
+                }}
+              />
+            </div>
+            <div className="grid grid-cols-3 text-[10px] font-mono tabular-nums">
+              <div>
+                <div className="text-ink-subtle uppercase tracking-wide text-[9px] font-bold flex items-center gap-1">
+                  <Shield className="h-2.5 w-2.5" /> Stop
+                </div>
+                <div className="font-bold mt-0.5" style={{ color: "#fda4af" }}>
+                  {formatPrice(sl)}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-ink-subtle uppercase tracking-wide text-[9px] font-bold">
+                  Entry
+                </div>
+                <div className="font-bold text-ink mt-0.5">
+                  {formatPrice(entry)}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-ink-subtle uppercase tracking-wide text-[9px] font-bold flex items-center justify-end gap-1">
+                  <Target className="h-2.5 w-2.5" /> TP1
+                </div>
+                <div className="font-bold mt-0.5" style={{ color: "var(--accent)" }}>
+                  {formatPrice(tp1)}
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-3 text-[10px] font-mono tabular-nums">
-            <div>
-              <div className="text-ink-subtle uppercase tracking-wide text-[9px] font-bold flex items-center gap-1">
-                <Shield className="h-2.5 w-2.5" /> Stop
-              </div>
-              <div className="font-bold mt-0.5" style={{ color: "#fda4af" }}>
-                {formatPrice(sl)}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-ink-subtle uppercase tracking-wide text-[9px] font-bold">
-                Entry
-              </div>
-              <div className="font-bold text-ink mt-0.5">
-                {formatPrice(entry)}
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-ink-subtle uppercase tracking-wide text-[9px] font-bold flex items-center justify-end gap-1">
-                <Target className="h-2.5 w-2.5" /> TP1
-              </div>
-              <div className="font-bold mt-0.5" style={{ color: "var(--accent)" }}>
-                {formatPrice(tp1)}
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* ── Stats grid ── */}
         <div className="grid grid-cols-2 gap-px bg-line/30">
@@ -476,7 +516,7 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
           )}
           <Stat
             label="Time held"
-            value={timeAgo(call.entry_time)}
+            value={heldDuration}
             icon={<Clock className="h-2.5 w-2.5" />}
           />
         </div>

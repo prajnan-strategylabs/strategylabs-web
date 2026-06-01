@@ -26,7 +26,7 @@ The wedge is **transparency**. Every other signal service hides losses. We publi
 | Reddit karma (`u/strategylabs`) | 0 | 200 | 1,500 | 5,000 |
 | Indexed blog posts | 0 | 4 | 10 | 18 |
 | Free signups | 0 | 0 | 100 (closed beta) | 800 |
-| Paid signups (Explorer/Trader) | 0 | 0 | 0 | 25 |
+| Paid signups (Trader/Auto) | 0 | 0 | 0 | 25 |
 | MRR | $0 | $0 | $0 | ~$800 |
 
 **North star metric: email waitlist signups.** Every piece of content has the same CTA — go to strategylabs.trade and drop your email.
@@ -220,7 +220,7 @@ If waitlist is **<1,200 by day 45**, halt new feature work and double down on Tw
 
 | Week | Product work |
 |---|---|
-| 9 | Stripe wired. Subscription gate: Explorer ($19), Trader ($59). Auto + Pro tiers parked until later. |
+| 9 | Billing wired. Subscription gate: Trader and Auto tiers. |
 | 10 | Public-facing showcase strategies page (the v22 + 5 best beta-user strategies, with full backtest CSVs downloadable) |
 | 11 | Telegram bot wired for paid-tier signal delivery (`strategylabs-api/app/routers/telegram.py` already exists — finish UI) |
 | 12 | Launch week prep: ProductHunt assets, press kit, FAQ page |
