@@ -1,26 +1,30 @@
 import { Capacitor } from "@capacitor/core";
 import {
-  PRODUCT_CATEGORY,
   Purchases,
   type CustomerInfo,
   type PurchasesPackage,
-  type PurchasesStoreProduct,
-  type SubscriptionOption,
 } from "@revenuecat/purchases-capacitor";
 import { RevenueCatUI } from "@revenuecat/purchases-capacitor-ui";
 
 const REVENUECAT_API_KEY = import.meta.env.VITE_REVENUECAT_API_KEY || "";
 const TRADER_ENTITLEMENT_IDS = [
   "StrategyLabs Trader",
+  "Trader",
   "trader",
   "strategylabs_trader",
   "strategy_labs_trader",
 ] as const;
 const AUTO_ENTITLEMENT_IDS = [
   "StrategyLabs Auto",
+  "StrategyLabs Pro",
+  "Auto",
+  "Pro",
   "auto",
+  "pro",
   "strategylabs_auto",
   "strategy_labs_auto",
+  "strategylabs_pro",
+  "strategy_labs_pro",
 ] as const;
 
 export const REVENUECAT_PRODUCT_IDS = {
@@ -59,18 +63,6 @@ function getExpectedProductId(planId: string, billingPeriod: BillingPeriod): str
   return REVENUECAT_PRODUCT_IDS[planId][billingPeriod];
 }
 
-function getBaseSubscriptionId(storeProductId: string): string {
-  return storeProductId.split(":")[0] || storeProductId;
-}
-
-function getBasePlanId(storeProductId: string): string {
-  return storeProductId.split(":")[1] || storeProductId;
-}
-
-function uniqueValues(values: string[]): string[] {
-  return Array.from(new Set(values.filter(Boolean)));
-}
-
 function getRevenueCatErrorMessage(error: any): string {
   if (typeof error === "object" && error !== null) {
     const data = error.data || error;
@@ -98,56 +90,19 @@ function getRevenueCatErrorMessage(error: any): string {
   return "Unknown RevenueCat purchase error";
 }
 
-function findSubscriptionOptionForProduct(
-  product: PurchasesStoreProduct,
-  expectedProductId: string,
-): SubscriptionOption | null {
-  const matchingOptions = (product.subscriptionOptions ?? []).filter(
-    (option) => option.storeProductId === expectedProductId,
-  );
-
-  return (
-    matchingOptions.find((option) => option.freePhase !== null) ??
-    matchingOptions.find((option) => !option.isBasePlan) ??
-    matchingOptions.find((option) => option.isBasePlan) ??
-    (product.defaultOption?.storeProductId === expectedProductId ? product.defaultOption : null)
-  );
-}
-
-function productMatchesExpectedId(
-  product: PurchasesStoreProduct,
-  expectedProductId: string,
-): boolean {
-  return (
-    product.identifier === expectedProductId ||
-    findSubscriptionOptionForProduct(product, expectedProductId) !== null
-  );
-}
-
-function packageMatchesExpectedId(
-  pkg: PurchasesPackage,
-  planId: PaidPlanId,
-  billingPeriod: BillingPeriod,
-  expectedProductId: string,
-): boolean {
-  const basePlanId = getBasePlanId(expectedProductId);
-  const knownPackageIds = [
-    expectedProductId,
-    basePlanId,
-    `${planId}-${billingPeriod}`,
-    `${planId}_${billingPeriod}`,
-    `${planId}.${billingPeriod}`,
-  ];
-
-  return (
-    knownPackageIds.includes(pkg.identifier) ||
-    productMatchesExpectedId(pkg.product, expectedProductId)
-  );
-}
-
 export function tierFromCustomerInfo(customerInfo: CustomerInfo): "auto" | "trader" | "free" {
-  if (hasAnyActiveEntitlement(customerInfo, AUTO_ENTITLEMENT_IDS)) return "auto";
-  if (hasAnyActiveEntitlement(customerInfo, TRADER_ENTITLEMENT_IDS)) return "trader";
+  console.log("[RevenueCat] Evaluating tier. CustomerInfo:", JSON.stringify(customerInfo));
+  console.log("[RevenueCat] Active Entitlements on device:", Object.keys(customerInfo?.entitlements?.active ?? {}));
+  
+  if (hasAnyActiveEntitlement(customerInfo, AUTO_ENTITLEMENT_IDS)) {
+    console.log("[RevenueCat] Matches Auto tier!");
+    return "auto";
+  }
+  if (hasAnyActiveEntitlement(customerInfo, TRADER_ENTITLEMENT_IDS)) {
+    console.log("[RevenueCat] Matches Trader tier!");
+    return "trader";
+  }
+  console.log("[RevenueCat] No matching active entitlements found. Defaulting to free.");
   return "free";
 }
 
@@ -160,59 +115,35 @@ export function findPackageForPlan(
   const expectedProductId = REVENUECAT_PRODUCT_IDS[planId][billingPeriod];
   const availablePackages = packages ?? [];
 
-  return (
-    availablePackages.find((pkg) =>
-      packageMatchesExpectedId(pkg, planId, billingPeriod, expectedProductId),
-    ) ??
-    null
-  );
-}
+  const expectedBaseProductId = expectedProductId.split(":")[0] || expectedProductId;
+  const expectedBasePlanId = expectedProductId.split(":")[1] || expectedProductId;
 
-async function fetchStoreProductsForPlan(expectedProductId: string): Promise<PurchasesStoreProduct[]> {
-  const productIds = uniqueValues([
+  const knownPackageIds = [
     expectedProductId,
-    getBaseSubscriptionId(expectedProductId),
-  ]);
+    expectedBasePlanId,
+    `${planId}-${billingPeriod}`,
+    `${planId}_${billingPeriod}`,
+    `${planId}.${billingPeriod}`,
+  ];
 
-  try {
-    const { products } = await Purchases.getProducts({
-      productIdentifiers: productIds,
-      type: PRODUCT_CATEGORY.SUBSCRIPTION,
-    });
-    return products;
-  } catch (error) {
-    const baseSubscriptionId = getBaseSubscriptionId(expectedProductId);
-    if (baseSubscriptionId === expectedProductId) throw error;
+  return (
+    availablePackages.find((pkg) => {
+      // 1. Check if package identifier matches expected pattern
+      if (knownPackageIds.includes(pkg.identifier)) return true;
 
-    console.warn(
-      `[RevenueCat] Could not fetch ${expectedProductId}; retrying base subscription ${baseSubscriptionId}.`,
-      error,
-    );
-    const { products } = await Purchases.getProducts({
-      productIdentifiers: [baseSubscriptionId],
-      type: PRODUCT_CATEGORY.SUBSCRIPTION,
-    });
-    return products;
-  }
-}
+      // 2. Check if product identifier matches exact or base product ID
+      const prodId = pkg.product.identifier;
+      if (prodId === expectedProductId || prodId === expectedBaseProductId) return true;
 
-async function purchaseStoreProductForPlan(
-  product: PurchasesStoreProduct,
-  expectedProductId: string,
-): Promise<CustomerInfo> {
-  const subscriptionOption = findSubscriptionOptionForProduct(product, expectedProductId);
+      // 3. Check if any subscription options on Android match
+      const hasMatchingOption = (pkg.product.subscriptionOptions ?? []).some(
+        (option) => option.storeProductId === expectedProductId || option.storeProductId === expectedBaseProductId,
+      );
+      if (hasMatchingOption) return true;
 
-  if (subscriptionOption && Capacitor.getPlatform() === "android") {
-    console.log(
-      `[RevenueCat] Purchasing subscription option: ${subscriptionOption.id} (${subscriptionOption.storeProductId})`,
-    );
-    const { customerInfo } = await Purchases.purchaseSubscriptionOption({ subscriptionOption });
-    return customerInfo;
-  }
-
-  console.log(`[RevenueCat] Purchasing store product: ${product.identifier}`);
-  const { customerInfo } = await Purchases.purchaseStoreProduct({ product });
-  return customerInfo;
+      return false;
+    }) ?? null
+  );
 }
 
 /**
@@ -362,48 +293,31 @@ export async function purchaseSubscriptionPackage(
     }
 
     console.log(`[RevenueCat] Direct purchase initiated for plan: ${planId} (${billingPeriod})`);
-    let offerings: any = null;
-    try {
-      offerings = await Purchases.getOfferings();
-    } catch (offeringError) {
-      console.warn("[RevenueCat] getOfferings failed. Falling back to direct product lookup.", offeringError);
-    }
-    const current = offerings?.current;
+    const offerings = await Purchases.getOfferings();
+    const current = offerings.current;
 
     if (!current) {
-      console.warn("[RevenueCat] No current offering found. Falling back to direct product lookup.");
+      throw new Error(
+        `RevenueCat has no current offering configured. Please set an offering as current in the RevenueCat dashboard.`
+      );
     }
 
-    const pkgToBuy = current
-      ? findPackageForPlan(current.availablePackages, planId, billingPeriod)
-      : null;
+    const pkgToBuy = findPackageForPlan(current.availablePackages, planId, billingPeriod);
 
     if (!pkgToBuy) {
-      console.warn(
-        `[RevenueCat] No package found for ${expectedProductId}. Falling back to direct product lookup.`,
+      throw new Error(
+        `No package found in the current offering matching plan "${planId}" and billing "${billingPeriod}". ` +
+        `Please ensure the package is attached to the current offering in the RevenueCat dashboard.`
       );
-      const products = await fetchStoreProductsForPlan(expectedProductId);
-      const productToBuy =
-        products.find((product) => productMatchesExpectedId(product, expectedProductId)) ?? null;
-
-      if (!productToBuy) {
-        throw new Error(
-          `RevenueCat could not find ${expectedProductId}. Add it to the current offering, or confirm the Google Play base plan is active and attached to an entitlement.`,
-        );
-      }
-
-      const customerInfo = await purchaseStoreProductForPlan(productToBuy, expectedProductId);
-      return tierFromCustomerInfo(customerInfo) !== "free";
     }
 
     console.log(`[RevenueCat] Purchasing package: ${pkgToBuy.identifier} (${pkgToBuy.product.identifier})`);
-    const subscriptionOption = findSubscriptionOptionForProduct(pkgToBuy.product, expectedProductId);
-    const { customerInfo } =
-      subscriptionOption && Capacitor.getPlatform() === "android"
-        ? await Purchases.purchaseSubscriptionOption({ subscriptionOption })
-        : await Purchases.purchasePackage({ aPackage: pkgToBuy });
+    const { customerInfo } = await Purchases.purchasePackage({ aPackage: pkgToBuy });
+    console.log("[RevenueCat] Purchase response customerInfo:", JSON.stringify(customerInfo));
 
-    return tierFromCustomerInfo(customerInfo) !== "free";
+    const resolvedTier = tierFromCustomerInfo(customerInfo);
+    console.log(`[RevenueCat] Resolved tier after purchase: ${resolvedTier}`);
+    return resolvedTier !== "free";
   } catch (error: any) {
     if (error.userCancelled) {
       console.log("[RevenueCat] User cancelled the purchase.");

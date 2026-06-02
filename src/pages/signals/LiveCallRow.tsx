@@ -148,7 +148,6 @@ export function LiveCallRow({
         </Pill>
         {displayUsd != null && (
           <div
-            key={`usd-${tick?.lastTickAt ?? "static"}`}
             className="font-mono font-extrabold tabular-nums text-[13px] sl-tick-flash"
             style={{ color: pnlColor, lineHeight: 1.1 }}
           >

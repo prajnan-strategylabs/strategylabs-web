@@ -86,16 +86,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // 2. Initial entitlement check
     void determineActiveTier().then((activeTier) => {
-      const targetTier = activeTier !== "free" ? activeTier : (user.tier === "trader" || user.tier === "auto") ? "free" : user.tier;
-      if (user.tier !== targetTier) {
-        setUser((prev) => prev ? { ...prev, tier: targetTier as UserTier } : null);
+      // ONLY upgrade from the frontend. Never downgrade to free here,
+      // as the backend webhook is the secure source of truth for cancellations/expirations.
+      // This prevents false-negative downgrades on web/startup/slow-sync.
+      if (activeTier !== "free" && user.tier !== activeTier) {
+        setUser((prev) => prev ? { ...prev, tier: activeTier as UserTier } : null);
         if (supabaseReady && supabase) {
           void supabase
             .from("profiles")
-            .update({ tier: targetTier })
+            .update({ tier: activeTier })
             .eq("id", user.id)
             .then(({ error }) => {
-              if (!error) writeCachedTier(user.id, targetTier as UserTier);
+              if (!error) writeCachedTier(user.id, activeTier as UserTier);
             });
         }
       }
@@ -108,22 +110,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser((prev) => {
         if (!prev) return null;
         if (prev.tier !== targetTier) {
-          // Sync to Supabase database profiles table
-          if (supabaseReady && supabase) {
-            void supabase
-              .from("profiles")
-              .update({ tier: targetTier })
-              .eq("id", prev.id)
-              .then(({ error }) => {
-                if (error) {
-                  console.error("Failed to sync tier to Supabase profiles:", error);
-                } else {
-                  console.log("Successfully synced tier to Supabase profiles:", targetTier);
-                  writeCachedTier(prev.id, targetTier as UserTier);
-                }
-              });
+          // Sync to Supabase database profiles table ONLY if it's an upgrade.
+          // Let the secure backend webhook handle all downgrades/expirations.
+          if (targetTier !== "free") {
+            if (supabaseReady && supabase) {
+              void supabase
+                .from("profiles")
+                .update({ tier: targetTier })
+                .eq("id", prev.id)
+                .then(({ error }) => {
+                  if (error) {
+                    console.error("Failed to sync tier to Supabase profiles:", error);
+                  } else {
+                    console.log("Successfully synced tier to Supabase profiles:", targetTier);
+                    writeCachedTier(prev.id, targetTier as UserTier);
+                  }
+                });
+            }
+            return { ...prev, tier: targetTier as UserTier };
+          } else {
+            // For free tier from listener, we update local cache but do NOT downgrade profiles table.
+            writeCachedTier(prev.id, "free");
           }
-          return { ...prev, tier: targetTier as UserTier };
         }
         return prev;
       });
@@ -332,10 +340,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Handy dev utility to dynamically toggle tier behaviors
+  // Handy dev utility to dynamically toggle tier behaviors, now also supporting instant billing upgrades
   const updateSandboxTier = (tier: UserTier) => {
     if (user) {
       setUser({ ...user, tier });
+      writeCachedTier(user.id, tier);
+      if (!isSandbox && supabaseReady && supabase) {
+        void supabase
+          .from("profiles")
+          .update({ tier })
+          .eq("id", user.id)
+          .then(({ error }) => {
+            if (error) {
+              console.error("[Auth] Failed to sync tier update:", error);
+            }
+          });
+      }
     }
   };
 

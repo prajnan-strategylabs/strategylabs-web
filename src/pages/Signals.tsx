@@ -90,6 +90,34 @@ function formatUsd(value: number): string {
   return rounded % 1 === 0 ? `$${rounded.toFixed(0)}` : `$${rounded.toFixed(2)}`;
 }
 
+function formatWithSameCurrency(value: number, priceString: string): string {
+  if (!priceString) {
+    return formatUsd(value);
+  }
+  const match = priceString.match(/^([^\d]*)([\d\s,.]+)([^\d]*)$/);
+  if (!match) {
+    return formatUsd(value);
+  }
+  
+  const prefix = match[1] || "";
+  const suffix = match[3] || "";
+  
+  const rounded = Math.round(value * 100) / 100;
+  const decSep = priceString.includes(",") && !priceString.includes(".") ? "," : ".";
+  
+  let formattedNumber = "";
+  if (rounded % 1 === 0) {
+    formattedNumber = rounded.toFixed(0);
+  } else {
+    formattedNumber = rounded.toFixed(2);
+    if (decSep === ",") {
+      formattedNumber = formattedNumber.replace(".", ",");
+    }
+  }
+  
+  return `${prefix}${formattedNumber}${suffix}`;
+}
+
 function visibleTierFor(tier: string): PlanId {
   if (tier === "trader" || tier === "free" || tier === "auto") return tier;
   return "free";
@@ -100,7 +128,7 @@ export function Signals() {
 }
 
 function SignalsBody() {
-  const { user, tierResolved } = useAuth();
+  const { user, tierResolved, updateSandboxTier } = useAuth();
   const currentTier = visibleTierFor(user?.tier ?? "free");
   const tierLabel = (user?.tier ?? currentTier).toUpperCase();
   const isPaid = currentTier !== "free";
@@ -250,7 +278,7 @@ function SignalsBody() {
       if (pkg && pkg.product) {
         const isYearly = billing === "yearly";
         const priceString = isYearly
-          ? formatUsd(pkg.product.price / 12)
+          ? formatWithSameCurrency(pkg.product.price / 12, pkg.product.priceString)
           : pkg.product.priceString;
         return {
           ...p,
@@ -281,7 +309,7 @@ function SignalsBody() {
       setPurchaseError(null);
       const purchased = await purchaseSubscriptionPackage(selectedPlan.id, billing);
       if (purchased) {
-        window.location.reload();
+        updateSandboxTier(selectedPlan.id as any);
         return;
       }
       setPurchaseError("Purchase was not completed. If the Play Store did not open, check the subscription product setup.");
