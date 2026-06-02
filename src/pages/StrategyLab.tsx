@@ -95,6 +95,8 @@ function StrategyLabBody() {
   const [equity, setEquity] = useState<number[]>([]);
   const [progress, setProgress] = useState(0);
   const [backtestStats, setBacktestStats] = useState<any | null>(null);
+  const [showAllTrades, setShowAllTrades] = useState(false);
+
   
   // Auditing / Upsell states
   const [auditReport, setAuditReport] = useState<{ analysis: string; optimized_prompt: string } | null>(null);
@@ -353,6 +355,7 @@ function StrategyLabBody() {
     setEquity([]);
     setProgress(0);
     setBacktestStats(null);
+    setShowAllTrades(false);
     setAuditReport(null);
     setErrorMessage(null);
   }
@@ -655,8 +658,42 @@ function StrategyLabBody() {
             <MetricCard k="Profit factor" v={String(backtestStats.profit_factor)} sub="gross/loss" />
           </div>
 
-          {/* Trade logs preview */}
-          <TradePreview trades={backtestStats.trades} />
+          {/* Sleek Yearly Breakdown Cards */}
+          {backtestStats.yearly_breakdown && (
+            <div className="rounded-2xl border border-line bg-bg-card/45 p-4 space-y-3 animate-fade-in">
+              <div className="text-[10px] uppercase tracking-[0.15em] font-extrabold text-ink-subtle flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-accent" />
+                Yearly Performance Breakdown
+              </div>
+              <div className="grid grid-cols-5 gap-2 text-center text-[10px] font-bold text-ink-muted border-b border-line/45 pb-2">
+                <div className="text-left pl-1">Year</div>
+                <div>Trades</div>
+                <div>Win Rate</div>
+                <div>Max DD</div>
+                <div className="text-right pr-1">Annual Return</div>
+              </div>
+              <div className="max-h-[165px] overflow-y-auto space-y-2.5 pr-0.5 scrollbar-thin select-text">
+                {backtestStats.yearly_breakdown.map((y: any) => (
+                  <div key={y.year} className="grid grid-cols-5 text-[11px] font-medium text-ink-muted py-1.5 items-center border-b border-line/20 last:border-0 last:pb-0">
+                    <div className="text-left font-mono text-ink pl-1">{y.year}</div>
+                    <div className="font-mono text-ink-subtle">{y.trades_count || 0}</div>
+                    <div className="font-mono text-ink-subtle">{y.win_rate_pct}%</div>
+                    <div className="font-mono text-rose-400/90">-{y.drawdown_pct}%</div>
+                    <div className={`text-right font-mono font-extrabold pr-1 ${y.return_pct >= 0 ? "text-accent" : "text-rose-400"}`}>
+                      {y.return_pct >= 0 ? "+" : ""}{y.return_pct}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Trade logs preview with full view hook */}
+          <TradePreview 
+            trades={backtestStats.trades} 
+            onViewAll={() => setShowAllTrades(true)} 
+          />
+
 
           {/* ── AI QUANT STRATEGY COACH AUDITOR CARD ── */}
           <div className="card bg-bg-card/25 border-line hover:border-accent/30 p-6 space-y-4 relative overflow-hidden transition-all duration-300">
@@ -838,6 +875,77 @@ function StrategyLabBody() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ALL TRADES DETAILED DIALOG MODAL ── */}
+      {showAllTrades && backtestStats && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in select-text">
+          <div className="w-full max-w-xl rounded-3xl border border-line bg-bg-card p-6 shadow-2xl animate-slide-up relative flex flex-col max-h-[85vh] overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-b-line/40">
+              <div>
+                <h3 className="text-base font-extrabold tracking-tight text-ink">
+                  Detailed Backtest Trade Logs
+                </h3>
+                <p className="text-[10px] text-ink-muted mt-0.5">
+                  Showing all {backtestStats.trades.length} simulated strategy executions
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowAllTrades(false)}
+                className="p-1.5 rounded-lg border border-line bg-bg-elev text-ink-muted hover:text-ink transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Modal Body (Scrollable Table) */}
+            <div className="flex-1 overflow-y-auto py-4 scrollbar-thin">
+              <div className="grid grid-cols-5 gap-2 text-center text-[10px] font-bold text-ink-muted border-b border-line/35 pb-2 mb-2">
+                <div className="text-left pl-1">Date</div>
+                <div>Side</div>
+                <div className="col-span-2 text-left">Price coordinates</div>
+                <div className="text-right pr-1">P&L (R)</div>
+              </div>
+              
+              <div className="space-y-2">
+                {backtestStats.trades.map((t: any, i: number) => (
+                  <div 
+                    key={i} 
+                    className="grid grid-cols-5 gap-2 text-[11px] font-medium text-ink-muted py-1.5 items-center border-b border-line/15 last:border-0"
+                  >
+                    <div className="text-left font-mono text-ink-subtle pl-1">{t.date}</div>
+                    <div className="text-center">
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${t.side === "LONG" ? "bg-accent/10 text-accent border border-accent/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"}`}>
+                        {t.side}
+                      </span>
+                    </div>
+                    <div className="col-span-2 text-left font-mono text-ink-subtle text-[10px] tabular-nums">
+                      ${t.entry.toLocaleString()} → ${t.exit.toLocaleString()}
+                    </div>
+                    <div 
+                      className={`text-right font-mono font-bold pr-1 ${t.pos ? "text-accent" : "text-rose-400"}`}
+                    >
+                      {t.r} ({t.pnl_pct >= 0 ? "+" : ""}{t.pnl_pct}%)
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-4 border-t border-line/40 flex justify-end">
+              <button
+                onClick={() => setShowAllTrades(false)}
+                className="h-9 px-5 rounded-lg border border-line bg-bg-elev font-bold text-[11px] text-ink hover:text-accent transition active:scale-95"
+              >
+                Close Logs
+              </button>
+            </div>
+
           </div>
         </div>
       )}
