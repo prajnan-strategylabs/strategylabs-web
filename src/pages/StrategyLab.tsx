@@ -24,7 +24,9 @@ import {
   apiListBacktests,
   apiChatStrategySpec,
   apiAnalyzeBacktest,
-  type ChatMessage
+  apiListStrategiesTyped,
+  type ChatMessage,
+  type Strategy
 } from "../lib/api";
 import {
   EquityCurve,
@@ -96,6 +98,7 @@ function StrategyLabBody() {
   const [progress, setProgress] = useState(0);
   const [backtestStats, setBacktestStats] = useState<any | null>(null);
   const [showAllTrades, setShowAllTrades] = useState(false);
+  const [userStrategies, setUserStrategies] = useState<Strategy[]>([]);
 
   
   // Auditing / Upsell states
@@ -117,7 +120,7 @@ function StrategyLabBody() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages, loadingChat]);
 
-  // Load user's backtest count on mount and stage transitions
+  // Load user's backtest count and saved strategies on mount and stage transitions
   useEffect(() => {
     if (!user) return;
     async function loadStats() {
@@ -128,6 +131,9 @@ function StrategyLabBody() {
         
         const runs = await apiListBacktests(token);
         setRunCount(runs.length);
+
+        const strats = await apiListStrategiesTyped(token);
+        setUserStrategies(strats);
       } catch (e) {
         // Silently fail
       }
@@ -447,6 +453,45 @@ function StrategyLabBody() {
               </button>
             </div>
           </div>
+
+          {/* Saved Strategies */}
+          {userStrategies.length > 0 && (
+            <div className="space-y-3">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-ink-subtle font-bold px-1 flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3 text-accent" /> Saved Strategies
+              </div>
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+                {userStrategies.map((strat) => (
+                  <button
+                    key={strat.id}
+                    onClick={() => {
+                      setPrompt(strat.source_prompt || strat.name);
+                      setCurrentSpec(strat.spec as any);
+                      setStage("spec");
+                    }}
+                    className="w-full text-left rounded-xl border border-line/50 bg-bg-card/30 hover:bg-bg-card/60 hover:border-accent/40 p-3.5 flex flex-col gap-1.5 active:scale-[0.99] transition duration-200"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="font-extrabold text-[12px] text-ink truncate max-w-[70%]">
+                        {strat.name}
+                      </span>
+                      <span className="text-[9px] uppercase font-mono font-bold tracking-wider text-accent bg-accent/10 px-1.5 py-0.5 rounded border border-accent/20">
+                        {strat.spec.asset as string || "Asset"}
+                      </span>
+                    </div>
+                    {strat.source_prompt && (
+                      <p className="text-[10.5px] text-ink-muted leading-relaxed line-clamp-2 italic">
+                        "{strat.source_prompt}"
+                      </p>
+                    )}
+                    <span className="text-[8.5px] font-mono text-ink-subtle">
+                      Created: {new Date(strat.created_at).toLocaleDateString()}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* templates */}
           <div className="space-y-2">
