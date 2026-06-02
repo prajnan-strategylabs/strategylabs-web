@@ -259,26 +259,38 @@ function StrategyLabBody() {
       let attempts = 0;
       const pollInterval = window.setInterval(async () => {
         attempts++;
-        if (attempts > 30) {
+        if (attempts > 60) { // Support slightly longer execution if backend needs it (48 seconds max)
           window.clearInterval(pollInterval);
           window.clearInterval(progressInterval);
-          throw new Error("Simulation timed out on backend.");
+          setErrorMessage("Simulation timed out on backend. Please try again.");
+          setStage("spec");
+          return;
         }
 
-        const runStatus: any = await apiGetBacktest(token, runRes.id);
-        if (runStatus.status === "completed" && runStatus.stats) {
+        try {
+          const runStatus: any = await apiGetBacktest(token, runRes.id);
+          if (runStatus.status === "completed" && runStatus.stats) {
+            window.clearInterval(pollInterval);
+            window.clearInterval(progressInterval);
+            
+            setProgress(100);
+            setBacktestStats(runStatus.stats);
+            setEquity(runStatus.stats.equity_curve.map((p: any) => p[1]));
+            
+            window.setTimeout(() => setStage("result"), 250);
+          } else if (runStatus.status === "failed") {
+            window.clearInterval(pollInterval);
+            window.clearInterval(progressInterval);
+            setErrorMessage(runStatus.error || "Simulation failed on backend.");
+            setStage("spec");
+            return;
+          }
+        } catch (err: any) {
           window.clearInterval(pollInterval);
           window.clearInterval(progressInterval);
-          
-          setProgress(100);
-          setBacktestStats(runStatus.stats);
-          setEquity(runStatus.stats.equity_curve.map((p: any) => p[1]));
-          
-          window.setTimeout(() => setStage("result"), 250);
-        } else if (runStatus.status === "failed") {
-          window.clearInterval(pollInterval);
-          window.clearInterval(progressInterval);
-          throw new Error(runStatus.error || "Simulation failed on backend.");
+          setErrorMessage(err.message || "Failed to retrieve simulation status.");
+          setStage("spec");
+          return;
         }
       }, 800);
 
