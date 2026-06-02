@@ -99,6 +99,7 @@ function StrategyLabBody() {
   const [backtestStats, setBacktestStats] = useState<any | null>(null);
   const [showAllTrades, setShowAllTrades] = useState(false);
   const [userStrategies, setUserStrategies] = useState<Strategy[]>([]);
+  const [userBacktests, setUserBacktests] = useState<any[]>([]);
 
   
   // Auditing / Upsell states
@@ -131,6 +132,7 @@ function StrategyLabBody() {
         
         const runs = await apiListBacktests(token);
         setRunCount(runs.length);
+        setUserBacktests(runs);
 
         const strats = await apiListStrategiesTyped(token);
         setUserStrategies(strats);
@@ -461,34 +463,56 @@ function StrategyLabBody() {
                 <Sparkles className="h-3 w-3 text-accent" /> Saved Strategies
               </div>
               <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-                {userStrategies.map((strat) => (
-                  <button
-                    key={strat.id}
-                    onClick={() => {
-                      setPrompt(strat.source_prompt || strat.name);
-                      setCurrentSpec(strat.spec as any);
-                      setStage("spec");
-                    }}
-                    className="w-full text-left rounded-xl border border-line/50 bg-bg-card/30 hover:bg-bg-card/60 hover:border-accent/40 p-3.5 flex flex-col gap-1.5 active:scale-[0.99] transition duration-200"
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <span className="font-extrabold text-[12px] text-ink truncate max-w-[70%]">
-                        {strat.name}
+                {userStrategies.map((strat) => {
+                  const stratRuns = userBacktests.filter(
+                    (run) => run.strategy_id === strat.id && run.status === "completed"
+                  );
+                  const latestRun = stratRuns.length > 0 ? stratRuns[0] : null;
+
+                  return (
+                    <button
+                      key={strat.id}
+                      onClick={() => {
+                        setPrompt(strat.source_prompt || strat.name);
+                        setCurrentSpec(strat.spec as any);
+                        
+                        if (latestRun && latestRun.stats) {
+                          setBacktestStats(latestRun.stats);
+                          setEquity(latestRun.stats.equity_curve.map((p: any) => p[1]));
+                          setActiveRunId(latestRun.id);
+                          setStage("result");
+                        } else {
+                          setStage("spec");
+                        }
+                      }}
+                      className="w-full text-left rounded-xl border border-line/50 bg-bg-card/30 hover:bg-bg-card/60 hover:border-accent/40 p-3.5 flex flex-col gap-1.5 active:scale-[0.99] transition duration-200"
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="font-extrabold text-[12px] text-ink truncate max-w-[65%]">
+                          {strat.name}
+                        </span>
+                        <div className="flex items-center gap-1.5 flex-none">
+                          {latestRun && latestRun.stats && (
+                            <span className={`text-[9px] font-mono font-extrabold px-1.5 py-0.5 rounded ${latestRun.stats.total_return_pct >= 0 ? "text-accent bg-accent/10 border border-accent/20" : "text-rose-400 bg-rose-500/10 border border-rose-500/20"}`}>
+                              {latestRun.stats.total_return_pct >= 0 ? "+" : ""}{latestRun.stats.total_return_pct}%
+                            </span>
+                          )}
+                          <span className="text-[9px] uppercase font-mono font-bold tracking-wider text-ink-subtle bg-bg-elev px-1.5 py-0.5 rounded border border-line">
+                            {strat.spec.asset as string || "Asset"}
+                          </span>
+                        </div>
+                      </div>
+                      {strat.source_prompt && (
+                        <p className="text-[10.5px] text-ink-muted leading-relaxed line-clamp-2 italic">
+                          "{strat.source_prompt}"
+                        </p>
+                      )}
+                      <span className="text-[8.5px] font-mono text-ink-subtle">
+                        Created: {new Date(strat.created_at).toLocaleDateString()}
                       </span>
-                      <span className="text-[9px] uppercase font-mono font-bold tracking-wider text-accent bg-accent/10 px-1.5 py-0.5 rounded border border-accent/20">
-                        {strat.spec.asset as string || "Asset"}
-                      </span>
-                    </div>
-                    {strat.source_prompt && (
-                      <p className="text-[10.5px] text-ink-muted leading-relaxed line-clamp-2 italic">
-                        "{strat.source_prompt}"
-                      </p>
-                    )}
-                    <span className="text-[8.5px] font-mono text-ink-subtle">
-                      Created: {new Date(strat.created_at).toLocaleDateString()}
-                    </span>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
