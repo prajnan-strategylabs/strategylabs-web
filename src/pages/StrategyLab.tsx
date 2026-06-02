@@ -673,8 +673,9 @@ function StrategyLabBody() {
             {userTier === "free" ? (
               <div className="space-y-4">
                 <p className="text-xs text-ink-muted leading-relaxed font-sans">
-                  The backtest succeeded, but our neural analyzer detected **2 critical weaknesses** (risk clustering during low-liquidity whipsaws) in your rules spec. Upgrade to **Trader** or **Auto** to unlock the full code optimization audit.
+                  The backtest succeeded, but our neural analyzer detected <span className="font-bold text-amber-500">2 critical weaknesses</span> (risk clustering during low-liquidity whipsaws) in your rules spec. Upgrade to <span className="font-bold text-accent">Trader</span> or <span className="font-bold text-accent">Auto</span> to unlock the full code optimization audit.
                 </p>
+
 
                 {/* Upsell box teaser */}
                 <div className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-xl space-y-2 flex gap-3.5 items-start select-none filter blur-[1.5px] opacity-40">
