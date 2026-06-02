@@ -3,8 +3,10 @@ import { LogoMark } from "./Logo";
 import { Link } from "react-router-dom";
 import { apiGetConfig } from "../lib/api";
 import { Capacitor } from "@capacitor/core";
+import { useAuth } from "../context/AuthContext";
 
 export function Header() {
+  const { user } = useAuth();
   const [isLaunched, setIsLaunched] = useState(false);
 
   const isAndroid = Capacitor.getPlatform() === "android";
@@ -41,15 +43,29 @@ export function Header() {
           <a href="/#pricing" className="text-sm text-ink-muted hover:text-ink transition-colors">Pricing</a>
         </nav>
 
-        {(isLaunched || Capacitor.isNativePlatform()) ? (
-          <Link to="/login" className="btn-primary text-sm py-2 px-4 shadow-md shadow-accent/25">
-            {Capacitor.isNativePlatform() ? "Sign In" : "Launch App"}
-          </Link>
-        ) : (
-          <a href="#waitlist" className="btn-primary text-sm py-2 px-4 shadow-md shadow-accent/25">
-            Join Waitlist
-          </a>
-        )}
+        <div className="flex items-center gap-4">
+          {user ? (
+            <Link to="/dashboard" className="btn-primary text-sm py-2 px-4 shadow-md shadow-accent/25">
+              Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link to="/login" className="text-sm font-bold text-ink-muted hover:text-ink transition-colors mr-1">
+                Sign In
+              </Link>
+              {!isLaunched && !Capacitor.isNativePlatform() && (
+                <a href="#waitlist" className="btn-primary text-sm py-2 px-4 shadow-md shadow-accent/25">
+                  Join Waitlist
+                </a>
+              )}
+              {(isLaunched || Capacitor.isNativePlatform()) && (
+                <Link to="/login" className="btn-primary text-sm py-2 px-4 shadow-md shadow-accent/25">
+                  {Capacitor.isNativePlatform() ? "Sign In" : "Launch App"}
+                </Link>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </header>
   );

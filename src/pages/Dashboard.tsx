@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
+import { WaitlistGate } from "../components/WaitlistGate";
 import {
   Bell,
   Sparkles,
@@ -46,12 +47,11 @@ interface StrategyRow {
 }
 
 export function Dashboard() {
-  // Dashboard is open to anyone who's signed in.
-  // The landing-page waitlist form still captures emails for marketing,
-  // but it no longer gates access to the app. To re-introduce a gate
-  // later (e.g. a closed-beta cohort), wrap <DashboardBody /> with
-  // <WaitlistGate> again — the component is still in src/components/.
-  return <DashboardBody />;
+  return (
+    <WaitlistGate>
+      <DashboardBody />
+    </WaitlistGate>
+  );
 }
 
 function DashboardBody() {
