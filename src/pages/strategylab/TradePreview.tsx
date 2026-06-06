@@ -22,7 +22,7 @@ export function TradePreview({ trades, onViewAll }: TradePreviewProps) {
     <div className="rounded-2xl border border-line bg-bg-card/40">
       <div className="flex items-center justify-between px-4 py-3 border-b border-line/40 bg-bg-elev/10">
         <div className="text-[11px] uppercase tracking-[0.15em] font-bold text-ink-muted">
-          Recent simulated trades ({trades?.length || 0})
+          Recent trades ({trades?.length || 0})
         </div>
         {onViewAll && (
           <button 

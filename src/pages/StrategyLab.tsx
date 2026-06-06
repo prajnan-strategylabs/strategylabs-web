@@ -960,7 +960,7 @@ function StrategyLabBody() {
                   Detailed Backtest Trade Logs
                 </h3>
                 <p className="text-[10px] text-ink-muted mt-0.5">
-                  Showing all {backtestStats.trades.length} simulated strategy executions
+                  Showing all {backtestStats.trades.length} strategy executions
                 </p>
               </div>
               <button 
