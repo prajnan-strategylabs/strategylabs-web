@@ -220,7 +220,7 @@ export function NumFlow({
     maximumFractionDigits: decimals,
   });
   return (
-    <span className={`tabular-nums font-mono ${className}`}>
+    <span className={`tabular-nums ${className}`}>
       {prefix}
       {txt}
       {suffix}

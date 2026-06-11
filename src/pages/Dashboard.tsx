@@ -202,23 +202,13 @@ function DashboardHome({
     }
   };
 
-  // Hero PnL = sum of user's strategy returns (NOT V22's). Ticks gently to
-  // signal liveness even when the underlying data is static.
-  const baseTotal = useMemo(
+  // Hero PnL = sum of user's strategy returns (NOT V22's). Static between
+  // loads — backtest data doesn't move, so the number doesn't either
+  // (DESIGN.md: numbers count up once on first data, never animate again).
+  const pnl = useMemo(
     () => (rows ?? []).reduce((sum, s) => sum + s.ret, 0),
     [rows],
   );
-  const [pnl, setPnl] = useState(baseTotal);
-  useEffect(() => {
-    setPnl(baseTotal);
-  }, [baseTotal]);
-  useEffect(() => {
-    if (!rows || rows.length === 0) return;
-    const id = window.setInterval(() => {
-      setPnl((p) => Math.max(0, p + (Math.random() - 0.45) * 0.4));
-    }, 2000);
-    return () => window.clearInterval(id);
-  }, [rows]);
 
   // Aggregated equity curve — overlay each strategy's normalized curve.
   const equity = useMemo(() => {
@@ -259,13 +249,13 @@ function DashboardHome({
       {/* ── Header ── */}
       <header className="flex items-start justify-between pt-1">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-subtle font-semibold">
+          <div className="text-caption uppercase text-ink-subtle">
             {dayName} · {timeStr}
           </div>
-          <h1 className="text-[26px] font-extrabold tracking-tight mt-1">
+          <h1 className="text-title-1 mt-1">
             Hey, {greet}.
           </h1>
-          <div className="text-sm text-ink-muted mt-0.5 flex items-center gap-1.5">
+          <div className="text-footnote text-ink-muted mt-1 flex items-center gap-1.5">
             <LiveDot /> {activeCount} live · {limit === 9999 ? "∞" : limit} max on{" "}
             {user?.tier ?? "free"}
           </div>
@@ -331,7 +321,7 @@ function DashboardHome({
               </div>
 
               {nameError && (
-                <div className="text-[11px] font-bold text-red-400 flex items-center justify-center gap-1.5 animate-pulse">
+                <div className="text-[11px] font-bold text-red-400 flex items-center justify-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-400" /> {nameError}
                 </div>
               )}
@@ -389,10 +379,10 @@ function DashboardHome({
               <div className="flex items-baseline gap-2 mt-1.5">
                 {isLoading ? (
                   <div className="h-[44px] flex items-center" aria-hidden>
-                    <div className="h-9 w-40 rounded-lg bg-bg-elev/60 animate-pulse" />
+                    <div className="skeleton h-9 w-40" />
                   </div>
                 ) : isEmpty ? (
-                  <span className="text-[44px] font-extrabold tracking-tight text-ink-muted tabular-nums font-mono">
+                  <span className="text-display text-ink-muted tabular-nums">
                     +0.0%
                   </span>
                 ) : (
@@ -401,12 +391,12 @@ function DashboardHome({
                     decimals={1}
                     prefix="+"
                     suffix="%"
-                    className="text-[44px] font-extrabold tracking-tight"
+                    className="text-display"
                   />
                 )}
               </div>
               {isLoading && (
-                <div className="h-4 w-48 rounded bg-bg-elev/40 animate-pulse mt-1.5" aria-hidden />
+                <div className="skeleton h-4 w-48 mt-1.5" aria-hidden />
               )}
               {!isLoading && !isEmpty && (
                 <div className="flex items-center gap-2 mt-1 text-xs flex-wrap">
@@ -436,7 +426,7 @@ function DashboardHome({
                   <Pill tone="accent">
                     <LiveDot size={5} /> Verified
                   </Pill>
-                  <div className="text-[10px] text-ink-subtle mt-2 font-mono tabular-nums">
+                  <div className="text-[10px] text-ink-subtle mt-2 tabular-nums">
                     {rows.length} strat · backtested
                   </div>
                 </>
@@ -465,14 +455,14 @@ function DashboardHome({
                 key={k}
                 className="rounded-lg bg-bg-elev/50 border border-line/40 py-2"
               >
-                <div className="text-[9px] uppercase tracking-[0.15em] text-ink-subtle font-bold">
+                <div className="text-caption uppercase text-ink-subtle">
                   {k}
                 </div>
                 {isLoading ? (
-                  <div className="h-4 w-10 mx-auto rounded bg-bg-elev/70 animate-pulse mt-1" aria-hidden />
+                  <div className="skeleton h-4 w-10 mx-auto mt-1" aria-hidden />
                 ) : (
                   <div
-                    className="font-mono tabular-nums text-sm font-bold mt-0.5"
+                    className="tabular-nums text-sm font-bold mt-0.5"
                     style={{ color: c }}
                   >
                     {v}
@@ -488,42 +478,31 @@ function DashboardHome({
       <div className="grid grid-cols-2 gap-3">
         <Link
           to="/lab"
-          className="group relative overflow-hidden rounded-xl border p-4 text-left transition active:scale-[0.98]"
-          style={{
-            borderColor: "rgba(34,211,170,0.30)",
-            background:
-              "linear-gradient(135deg, rgba(34,211,170,0.10), rgba(34,211,170,0.02))",
-          }}
+          className="group rounded-md2 border border-line bg-surface-1 active:bg-surface-2 transition-colors duration-press p-4 text-left"
         >
           <div className="flex items-center justify-between">
-            <div
-              className="h-9 w-9 rounded-lg flex items-center justify-center"
-              style={{
-                background: "rgba(34,211,170,0.18)",
-                color: "var(--accent)",
-              }}
-            >
+            <div className="h-9 w-9 rounded-sm2 flex items-center justify-center bg-accent-soft text-accent">
               <Sparkles className="h-[18px] w-[18px]" />
             </div>
-            <ArrowRight className="h-4 w-4 text-ink-subtle group-hover:text-ink group-hover:translate-x-0.5 transition" />
+            <ArrowRight className="h-4 w-4 text-ink-faint group-hover:text-ink transition" />
           </div>
-          <div className="font-bold text-sm mt-3">New strategy</div>
-          <div className="text-[11px] text-ink-muted">
+          <div className="text-headline mt-3">New strategy</div>
+          <div className="text-footnote text-ink-muted mt-0.5">
             Type a thesis · auto-compiled
           </div>
         </Link>
         <Link
           to="/signals"
-          className="group relative overflow-hidden rounded-xl border border-line/70 bg-bg-card/40 p-4 text-left transition active:scale-[0.98] hover:border-line"
+          className="group rounded-md2 border border-line bg-surface-1 active:bg-surface-2 transition-colors duration-press p-4 text-left"
         >
           <div className="flex items-center justify-between">
-            <div className="h-9 w-9 rounded-lg flex items-center justify-center bg-bg-elev text-ink-muted">
+            <div className="h-9 w-9 rounded-sm2 flex items-center justify-center bg-surface-2 text-ink-muted">
               <Radio className="h-[18px] w-[18px]" />
             </div>
-            <ArrowRight className="h-4 w-4 text-ink-subtle group-hover:text-ink group-hover:translate-x-0.5 transition" />
+            <ArrowRight className="h-4 w-4 text-ink-faint group-hover:text-ink transition" />
           </div>
-          <div className="font-bold text-sm mt-3">Live Signals</div>
-          <div className="text-[11px] text-ink-muted">
+          <div className="text-headline mt-3">Live Signals</div>
+          <div className="text-footnote text-ink-muted mt-0.5">
             From V22 · not your strategies
           </div>
         </Link>
@@ -554,12 +533,12 @@ function DashboardHome({
             {[1, 2, 3].map((n) => (
               <div
                 key={n}
-                className="rounded-xl border border-line/60 bg-bg-card/40 p-3.5 flex items-center gap-3 animate-pulse"
+                className="rounded-md2 border border-line bg-surface-1 p-3.5 flex items-center gap-3"
               >
-                <div className="h-11 w-11 rounded-xl bg-bg-elev/60" />
+                <div className="skeleton h-11 w-11" />
                 <div className="flex-1">
-                  <div className="h-3 w-32 rounded bg-bg-elev/60" />
-                  <div className="h-2 w-48 rounded bg-bg-elev/40 mt-2" />
+                  <div className="skeleton h-3 w-32" />
+                  <div className="skeleton h-2 w-48 mt-2" />
                 </div>
               </div>
             ))}
@@ -640,22 +619,22 @@ function StrategyRowCard({
   return (
     <button
       onClick={onOpen}
-      className="w-full text-left group rounded-xl border border-line/60 bg-bg-card/40 hover:border-line hover:bg-bg-card/60 active:scale-[0.995] transition p-3.5 flex items-center gap-3"
+      className="w-full text-left rounded-md2 border border-line bg-surface-1 active:bg-surface-2 transition-colors duration-press p-4 flex items-center gap-3.5"
     >
-      <div className="h-11 w-11 rounded-xl flex items-center justify-center bg-bg-elev border border-line/50 flex-none">
-        <span className="font-mono text-[10px] font-bold text-ink-muted tracking-wide">
+      <div className="h-11 w-11 rounded-sm2 flex items-center justify-center bg-surface-2 flex-none">
+        <span className="text-[10px] font-bold text-ink-muted tracking-wide">
           {s.asset}
         </span>
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <div className="font-bold text-[14px] truncate">{s.name}</div>
+          <div className="text-headline truncate">{s.name}</div>
           <Pill tone={tone} className="!py-[1px]">
             {s.status === "live" && <LiveDot size={4} />} {s.status}
           </Pill>
         </div>
-        <div className="text-[11px] text-ink-muted truncate font-mono">
+        <div className="text-footnote text-ink-muted truncate mt-0.5">
           {s.spec}
         </div>
       </div>
@@ -666,12 +645,12 @@ function StrategyRowCard({
             data={s.curve}
             width={56}
             height={24}
-            color={pos ? "var(--accent)" : "#fda4af"}
+            color={pos ? "var(--accent)" : "var(--negative)"}
           />
           <div className="text-right">
             <div
-              className="font-mono font-bold text-[13px] tabular-nums"
-              style={{ color: pos ? "var(--accent)" : "#fda4af" }}
+              className="font-bold text-[13px] tabular-nums"
+              style={{ color: pos ? "var(--accent)" : "var(--negative)" }}
             >
               {pos ? "+" : ""}
               {s.ret.toFixed(1)}%
@@ -680,7 +659,7 @@ function StrategyRowCard({
           </div>
         </div>
       ) : (
-        <div className="text-[11px] text-ink-subtle font-bold">Draft</div>
+        <div className="text-footnote text-ink-subtle font-bold">Draft</div>
       )}
     </button>
   );

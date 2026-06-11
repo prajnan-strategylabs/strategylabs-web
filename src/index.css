@@ -1,19 +1,54 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ── Design tokens used by inline styles in mobile redesign ── */
+/* ════════════════════════════════════════════════════════════════════
+   Design tokens — single source of truth (see DESIGN.md §2)
+   ════════════════════════════════════════════════════════════════════ */
 :root {
-  --bg:        #0a0e1a;
-  --bg-card:   #0f1525;
-  --bg-elev:   #141b2e;
-  --ink:       #e6e9f0;
-  --ink-muted: #8b94a8;
-  --ink-subtle:#5a6378;
-  --accent:    #22d3aa;
-  --line:      #1e2740;
+  /* Surfaces — elevation ladder */
+  --surface-0: #070b14;
+  --surface-1: #0d1322;
+  --surface-2: #131a2c;
+  --surface-3: #1a2238;
+
+  /* Ink — one base color, alpha ladder */
+  --ink-100: rgba(232, 236, 245, 1);
+  --ink-70:  rgba(232, 236, 245, 0.7);
+  --ink-45:  rgba(232, 236, 245, 0.45);
+  --ink-25:  rgba(232, 236, 245, 0.25);
+
+  /* Hairlines */
+  --line:        #1d2438;
+  --line-strong: #29314d;
+
+  /* Brand & semantic */
+  --accent:         #2ee6b8;
+  --accent-pressed: #26c9a1;
+  --accent-soft:    rgba(46, 230, 184, 0.12);
+  --positive:       #2ee6b8;
+  --negative:       #ff5c7a;
+  --negative-soft:  rgba(255, 92, 122, 0.12);
+  --warning:        #ffb02e;
+  --warning-soft:   rgba(255, 176, 46, 0.1);
+
+  /* Radius */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+
+  /* Motion */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-spring: cubic-bezier(0.34, 1.3, 0.64, 1);
+
+  /* ── Legacy aliases (pre-design-system code paths) ── */
+  --bg:        var(--surface-0);
+  --bg-card:   var(--surface-1);
+  --bg-elev:   var(--surface-2);
+  --ink:       var(--ink-100);
+  --ink-muted: var(--ink-70);
+  --ink-subtle:var(--ink-45);
 }
 
 @layer base {
@@ -26,16 +61,16 @@
   body {
     @apply min-h-screen antialiased font-sans;
     background:
-      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(34, 211, 170, 0.15), transparent 60%),
-      radial-gradient(ellipse 60% 50% at 100% 100%, rgba(99, 102, 241, 0.08), transparent 60%),
-      #0a0e1a;
+      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(46, 230, 184, 0.07), transparent 60%),
+      var(--surface-0);
+    font-feature-settings: "cv11", "ss01";
   }
 
   /* nicer scrollbar */
   ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-track { background: #0a0e1a; }
-  ::-webkit-scrollbar-thumb { background: #1e2740; border-radius: 5px; }
-  ::-webkit-scrollbar-thumb:hover { background: #2a3654; }
+  ::-webkit-scrollbar-track { background: var(--surface-0); }
+  ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 5px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(232, 236, 245, 0.2); }
 
   /* focus ring */
   *:focus-visible {
@@ -65,23 +100,75 @@
   }
 
   .card {
-    @apply rounded-xl border border-line bg-bg-card p-6
-           shadow-[0_4px_30px_rgba(0,0,0,0.3)];
+    @apply rounded-xl border border-line bg-bg-card p-6;
   }
 
   .stat-num {
-    @apply font-mono text-2xl font-semibold tabular-nums tracking-tight;
+    @apply text-2xl font-bold tabular-nums tracking-tight;
   }
 }
 
-/* ── Mobile redesign — keyframes & utilities used by inline styles ── */
+/* ════════════════════════════════════════════════════════════════════
+   Motion keyframes
+   ════════════════════════════════════════════════════════════════════ */
 @keyframes spark-draw { to { stroke-dashoffset: 0; } }
 @keyframes blink { 50% { opacity: 0; } }
 @keyframes lping { 75%, 100% { transform: scale(2); opacity: 0; } }
 @keyframes lpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
 
+/* Shimmer — the only loading animation (DESIGN.md §4) */
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(232, 236, 245, 0.06), transparent);
+  animation: shimmer 1.4s var(--ease-out-quart) infinite;
+}
+
+/* Content entrance — fade + 8px rise (DESIGN.md §4) */
+@keyframes enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-enter {
+  animation: enter 280ms var(--ease-out-quart) both;
+}
+/* Staggered children: apply .stagger to a container of .animate-enter items */
+.stagger > .animate-enter:nth-child(2) { animation-delay: 40ms; }
+.stagger > .animate-enter:nth-child(3) { animation-delay: 80ms; }
+.stagger > .animate-enter:nth-child(4) { animation-delay: 120ms; }
+.stagger > .animate-enter:nth-child(5) { animation-delay: 160ms; }
+.stagger > .animate-enter:nth-child(n+6) { animation-delay: 200ms; }
+
+/* Page/tab transition (DESIGN.md §6) */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-page {
+  animation: page-enter 280ms var(--ease-out-quart) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-enter, .animate-page, .skeleton::after,
+  .animate-fade-in, .animate-slide-up {
+    animation: none !important;
+  }
+}
+
 /* Pingy "live" halo used on icon tiles + dots */
-.animate-ping { animation: lping 1.6s cubic-bezier(0,0,0.2,1) infinite; }
+.animate-ping { animation: lping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite; }
 
 /* Hide scrollbar for horizontal scrolling chip rows */
 .no-scrollbar::-webkit-scrollbar { display: none; }
