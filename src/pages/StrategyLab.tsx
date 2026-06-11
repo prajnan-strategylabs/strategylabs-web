@@ -15,7 +15,8 @@ import {
   RefreshCw,
   Zap,
   HelpCircle,
-  X
+  X,
+  Share2
 } from "lucide-react";
 import {
   apiCreateStrategy,
@@ -37,8 +38,10 @@ import remarkGfm from "remark-gfm";
 import { toast } from "../lib/toast";
 import { hapticSuccess, hapticLight } from "../lib/haptics";
 import { startDictation, type DictationHandle } from "../lib/speech";
+import { shareBacktestCard } from "../lib/shareCard";
 
 // Modular Sub-components Imports
+import { LabTour, shouldShowLabTour } from "./strategylab/LabTour";
 import { Stepper } from "./strategylab/Stepper";
 import { CompilingPanel } from "./strategylab/CompilingPanel";
 import { SpecCard } from "./strategylab/SpecCard";
@@ -134,6 +137,7 @@ function StrategyLabBody() {
   const [isDoubtsExpanded, setIsDoubtsExpanded] = useState(false);
 
   // Prompt helpers: chip pickers + voice dictation
+  const [showTour, setShowTour] = useState(() => shouldShowLabTour());
   const [openPicker, setOpenPicker] = useState<"indicators" | "timeframes" | null>(null);
   const [listening, setListening] = useState(false);
   const dictationRef = useRef<DictationHandle | null>(null);
@@ -510,6 +514,7 @@ function StrategyLabBody() {
       {/* ── INPUT PROMPT THESIS ── */}
       {stage === "input" && (
         <div className="space-y-4 animate-fade-in">
+          {showTour && <LabTour onDone={() => setShowTour(false)} />}
           <div className="rounded-2xl border border-line bg-bg-card/40 p-4">
             <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-ink-subtle font-bold">
               <Sparkles className="h-3 w-3" /> Describe your Strategy
@@ -1081,6 +1086,19 @@ function StrategyLabBody() {
             <div className="relative mt-3 -mx-1">
               <EquityCurve data={equity} height={80} animated />
             </div>
+            <button
+              onClick={() => {
+                hapticLight();
+                shareBacktestCard(
+                  backtestStats,
+                  currentSpec?.asset || "BTC/USDT",
+                  equity
+                ).catch(() => toast("Couldn't open the share sheet.", "error"));
+              }}
+              className="relative mt-3 inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-[11px] font-bold text-accent hover:bg-accent/20 active:scale-95 transition"
+            >
+              <Share2 className="h-3.5 w-3.5" /> Share result
+            </button>
           </div>
 
           {/* Metrics grid */}
