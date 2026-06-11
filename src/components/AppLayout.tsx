@@ -9,6 +9,7 @@ import { supabase } from "../lib/supabase";
 import { apiAdminCheck } from "../lib/api";
 import { Capacitor } from "@capacitor/core";
 import { showBanner, hideBanner } from "../lib/ads";
+import { hapticLight } from "../lib/haptics";
 
 export function AppLayout() {
   const { user, loading, tierResolved, signOut, isSandbox, updateSandboxTier } = useAuth();
@@ -229,8 +230,8 @@ export function AppLayout() {
       </main>
 
       {/* ── MOBILE BOTTOM NAVIGATION BAR (floating pill, matches handoff design) ── */}
-      <nav 
-        className="md:hidden fixed left-4 right-4 z-40"
+      <nav
+        className="bottom-nav md:hidden fixed left-4 right-4 z-40"
         style={{ bottom: bottomNavOffset }}
       >
         <div
@@ -248,6 +249,7 @@ export function AppLayout() {
               <Link
                 key={item.to}
                 to={item.to}
+                onClick={() => hapticLight()}
                 className="flex flex-col items-center justify-center w-16 active:scale-95 transition relative"
               >
                 {active && (

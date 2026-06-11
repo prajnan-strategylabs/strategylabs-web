@@ -8,13 +8,13 @@ interface CompilingPanelProps {
 
 export function CompilingPanel({ prompt }: CompilingPanelProps) {
   const lines = [
-    "// parsing quantitative thesis...",
-    `tokens = lex("${prompt.slice(0, 18)}...")`,
-    "✓ scanning asset and timeframe gates",
-    "✓ mapping indicator specifications",
-    "// triggering quant compiler Consensus",
-    "✓ resolving triggers and safety indicators",
-    "✓ rules spec compiled successfully in 0.42s"
+    "// Reading your strategy...",
+    `"${prompt.slice(0, 32)}${prompt.length > 32 ? "…" : ""}"`,
+    "✓ Recognized asset and timeframe",
+    "✓ Mapped your indicators",
+    "// Turning your idea into precise rules",
+    "✓ Built entry, exit and safety rules",
+    "✓ Strategy ready — review it below"
   ];
   
   const [shown, setShown] = useState<string[]>([]);
@@ -39,7 +39,7 @@ export function CompilingPanel({ prompt }: CompilingPanelProps) {
           <Terminal className="h-[14px] w-[14px]" />
         </div>
         <div className="text-[11px] uppercase tracking-[0.15em] font-bold text-ink-muted">
-          Compiling Thesis...
+          Building your strategy...
         </div>
         <span className="ml-auto inline-flex items-center gap-1 text-[10px] text-ink-subtle font-mono">
           <LiveDot size={4} /> claude

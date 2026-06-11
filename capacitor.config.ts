@@ -14,6 +14,15 @@ const config: CapacitorConfig = {
     },
     CapacitorHttp: {
       enabled: true
+    },
+    Keyboard: {
+      resize: "body",
+      resizeOnFullScreen: true
+    },
+    StatusBar: {
+      style: "DARK",
+      backgroundColor: "#0a0e1a",
+      overlaysWebView: false
     }
   }
 };

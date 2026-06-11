@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { LogoLockup } from "../components/Logo";
 import { Mail, ArrowRight, CheckCircle2, AlertCircle } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
 
 export function Login() {
   const { user, signIn, verifyOtp, isSandbox } = useAuth();
@@ -241,14 +242,16 @@ export function Login() {
           </form>
         )}
 
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => navigate("/")}
-            className="text-xs font-medium text-ink-subtle hover:text-accent transition-colors"
-          >
-            ← Back to marketing site
-          </button>
-        </div>
+        {!Capacitor.isNativePlatform() && (
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => navigate("/")}
+              className="text-xs font-medium text-ink-subtle hover:text-accent transition-colors"
+            >
+              ← Back to marketing site
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

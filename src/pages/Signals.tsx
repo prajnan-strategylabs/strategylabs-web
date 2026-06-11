@@ -18,6 +18,7 @@ import { ConnectTelegram } from "../components/ConnectTelegram";
 import { LiveSignalDrawer } from "../components/LiveSignalDrawer";
 import { HistoryDrawer } from "../components/HistoryDrawer";
 import { useBinanceTradeStreams } from "../lib/useBinanceStreams";
+import { toast } from "../lib/toast";
 import { useAuth } from "../context/AuthContext";
 import {
   findPackageForPlan,
@@ -300,7 +301,7 @@ function SignalsBody() {
     if (isCurrent) return;
 
     if (selectedPlan.id === "free") {
-      alert("To manage or cancel your active subscription, please use the settings in your profile menu or system subscription settings.");
+      toast("To manage or cancel your subscription, use the settings in your profile menu.", "info");
       return;
     }
 

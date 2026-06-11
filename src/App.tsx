@@ -20,11 +20,13 @@ import { AdminSettings } from "./pages/admin/AdminSettings";
 import { AdminStrategyTracker } from "./pages/admin/AdminStrategyTracker";
 import { SplashScreen } from "./components/SplashScreen";
 import { BackButtonHandler } from "./components/BackButtonHandler";
+import { Toaster } from "./components/Toaster";
 
 function App() {
   return (
     <AuthProvider>
       <SplashScreen />
+      <Toaster />
       <BrowserRouter>
         <BackButtonHandler />
         <Routes>

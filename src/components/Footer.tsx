@@ -1,4 +1,5 @@
 import { Mail } from "lucide-react";
+import { Link } from "react-router-dom";
 import { LogoMark } from "./Logo";
 
 // Brand icons not in lucide — use inline SVGs
@@ -29,12 +30,12 @@ export function Footer() {
         <div className="grid gap-8 md:grid-cols-4">
           {/* Brand */}
           <div>
-            <a href="/" className="flex items-center gap-2.5">
+            <Link to="/" className="flex items-center gap-2.5">
               <LogoMark size={32} className="text-accent" />
               <span className="text-lg font-bold tracking-tight">
                 Strategy<span className="text-accent">Labs</span>
               </span>
-            </a>
+            </Link>
             <p className="mt-3 max-w-xs text-sm text-ink-muted">
               Where strategies are tested.
               Build, backtest, and deploy trading strategies — verifiably.
@@ -93,9 +94,9 @@ export function Footer() {
           <div className="flex flex-wrap items-center justify-between gap-2 pt-4">
             <span>© {year} Strategy Labs. All rights reserved.</span>
             <div className="flex gap-4">
-              <a href="/terms" className="hover:text-ink-muted transition-colors">Terms</a>
-              <a href="/privacy" className="hover:text-ink-muted transition-colors">Privacy</a>
-              <a href="/disclosures" className="hover:text-ink-muted transition-colors">Disclosures</a>
+              <Link to="/terms" className="hover:text-ink-muted transition-colors">Terms</Link>
+              <Link to="/privacy" className="hover:text-ink-muted transition-colors">Privacy</Link>
+              <Link to="/disclosures" className="hover:text-ink-muted transition-colors">Disclosures</Link>
             </div>
           </div>
         </div>
@@ -116,16 +117,18 @@ function FooterColumn({ title, children }: { title: string; children: React.Reac
 function FooterLink({
   href, children, external,
 }: { href: string; children: React.ReactNode; external?: boolean }) {
+  const className = "inline-flex items-center gap-2 text-ink-muted hover:text-ink transition-colors";
   return (
     <li>
-      <a
-        href={href}
-        target={external ? "_blank" : undefined}
-        rel={external ? "noopener noreferrer" : undefined}
-        className="inline-flex items-center gap-2 text-ink-muted hover:text-ink transition-colors"
-      >
-        {children}
-      </a>
+      {external ? (
+        <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+          {children}
+        </a>
+      ) : (
+        <Link to={href} className={className}>
+          {children}
+        </Link>
+      )}
     </li>
   );
 }

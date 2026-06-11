@@ -5,6 +5,7 @@ import {
   type PurchasesPackage,
 } from "@revenuecat/purchases-capacitor";
 import { RevenueCatUI } from "@revenuecat/purchases-capacitor-ui";
+import { toast } from "./toast";
 
 const REVENUECAT_API_KEY = import.meta.env.VITE_REVENUECAT_API_KEY || "";
 const TRADER_ENTITLEMENT_IDS = [
@@ -246,7 +247,7 @@ export async function getCustomerInfo(): Promise<CustomerInfo | null> {
  */
 export async function presentPaywall(offeringId?: string): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) {
-    alert("In-App Purchases are only available inside the iOS & Android mobile apps. Please purchase on our web platform.");
+    toast("In-app purchases are only available in the mobile app. Please purchase on our web platform.", "info");
     return false;
   }
 
@@ -282,7 +283,7 @@ export async function purchaseSubscriptionPackage(
   billingPeriod: "monthly" | "yearly" = "monthly"
 ): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) {
-    alert("In-App Purchases are only available inside the iOS & Android mobile apps. Please purchase on our web platform.");
+    toast("In-app purchases are only available in the mobile app. Please purchase on our web platform.", "info");
     return false;
   }
 
@@ -360,7 +361,7 @@ export async function presentPaywallIfNeeded(): Promise<boolean> {
  */
 export async function presentCustomerCenter(): Promise<void> {
   if (!Capacitor.isNativePlatform()) {
-    alert("Subscription management is only available inside the mobile application.");
+    toast("Subscription management is only available inside the mobile app.", "info");
     return;
   }
 

@@ -34,6 +34,8 @@ import {
 } from "../components/MobileUI";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { toast } from "../lib/toast";
+import { hapticSuccess } from "../lib/haptics";
 
 // Modular Sub-components Imports
 import { Stepper } from "./strategylab/Stepper";
@@ -110,6 +112,8 @@ function StrategyLabBody() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upsellReason, setUpsellReason] = useState<"limit" | "audit" | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSpecSheetOpen, setIsSpecSheetOpen] = useState(false);
+  const [isDoubtsExpanded, setIsDoubtsExpanded] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -286,7 +290,8 @@ function StrategyLabBody() {
             setProgress(100);
             setBacktestStats(runStatus.stats);
             setEquity(runStatus.stats.equity_curve.map((p: any) => p[1]));
-            
+            hapticSuccess();
+
             window.setTimeout(() => setStage("result"), 250);
           } else if (runStatus.status === "failed") {
             window.clearInterval(pollInterval);
@@ -376,7 +381,7 @@ function StrategyLabBody() {
   return (
     <div className="space-y-4 pb-12 animate-fade-in">
       {/* ── HEADER ── */}
-      <header className="pt-1 flex items-center justify-between">
+      <header className={`pt-1 flex items-center justify-between ${stage === "chat" ? "hidden lg:flex" : "flex"}`}>
         <div className="flex items-center gap-2.5">
           <div
             className="relative h-10 w-10 rounded-2xl flex items-center justify-center bg-accent/15 text-accent"
@@ -406,13 +411,25 @@ function StrategyLabBody() {
       </header>
 
       {/* Stepper progress */}
-      <Stepper stage={stage} />
+      <div className={stage === "chat" ? "hidden lg:block" : "block"}>
+        <Stepper stage={stage} />
+      </div>
 
       {/* ── ERROR TOAST ── */}
       {errorMessage && (
         <div className="card border-red-500/25 bg-red-500/5 p-4 flex gap-3 items-start animate-fade-in">
           <AlertTriangle className="h-4.5 w-4.5 text-red-400 flex-none mt-0.5" />
-          <p className="text-xs text-red-400 font-semibold leading-relaxed">{errorMessage}</p>
+          <div className="flex-1 space-y-2.5">
+            <p className="text-xs text-red-400 font-semibold leading-relaxed">{errorMessage}</p>
+            {currentSpec && (
+              <button
+                onClick={handleRunBacktest}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-[11px] font-bold text-red-300 hover:bg-red-500/20 active:scale-95 transition"
+              >
+                <RefreshCw className="h-3 w-3" /> Retry backtest
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -547,105 +564,299 @@ function StrategyLabBody() {
 
       {/* ── COCH CHAT DOUBT ELICITATION THREAD ── */}
       {stage === "chat" && (
-        <div className="grid gap-6 lg:grid-cols-2 items-start animate-fade-in">
-          {/* Left panel: chatbot logs */}
-          <div className="rounded-2xl border border-line bg-bg-card/40 flex flex-col h-[520px] overflow-hidden">
-            {/* Header chat log */}
-            <div className="px-4 py-3 border-b border-line/40 flex items-center justify-between bg-bg-elev/20">
-              <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-ink-muted flex items-center gap-1.5">
-                <Terminal className="h-3.5 w-3.5 text-accent" />
-                Quant Coach doubt resolution
-              </span>
-              <span className="inline-flex items-center gap-1 text-[9px] text-ink-subtle font-mono bg-bg-elev border border-line px-2 py-0.5 rounded">
-                <LiveDot size={4} /> {userTier === "free" ? "claude" : "quant-coach"}
-              </span>
+        <div className="space-y-4 animate-fade-in">
+          
+          {/* ── DESKTOP VIEW LAYOUT ── */}
+          <div className="hidden lg:grid gap-6 lg:grid-cols-2 items-start">
+            {/* Left panel: chatbot logs */}
+            <div className="rounded-2xl border border-line bg-bg-card/40 flex flex-col h-[520px] overflow-hidden">
+              {/* Header chat log */}
+              <div className="px-4 py-3 border-b border-line/40 flex items-center justify-between bg-bg-elev/20">
+                <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-ink-muted flex items-center gap-1.5">
+                  <Terminal className="h-3.5 w-3.5 text-accent" />
+                  Quant Coach doubt resolution
+                </span>
+                <span className="inline-flex items-center gap-1 text-[9px] text-ink-subtle font-mono bg-bg-elev border border-line px-2 py-0.5 rounded">
+                  <LiveDot size={4} /> {userTier === "free" ? "claude" : "quant-coach"}
+                </span>
+              </div>
+
+              {/* Chat Messages viewport */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin select-text">
+                {chatMessages.map((m, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex flex-col gap-1.5 max-w-[85%] ${m.role === "user" ? "ml-auto items-end" : "mr-auto items-start"}`}
+                  >
+                    <span className="text-[8px] font-mono text-ink-subtle uppercase">
+                      {m.role === "user" ? "You" : "Quant Coach"}
+                    </span>
+                    <div className={`p-3 rounded-2xl text-[12px] leading-relaxed border
+                      ${m.role === "user" 
+                        ? "bg-bg-elev border-line text-ink" 
+                        : "bg-accent/5 border-accent/15 text-ink-muted"}`}
+                    >
+                      {m.content}
+                    </div>
+                  </div>
+                ))}
+                
+                {loadingChat && (
+                  <div className="flex items-center gap-2 text-ink-subtle text-[11px] italic font-mono pl-2">
+                    <Loader2 className="h-3 w-3 animate-spin text-accent" />
+                    Coach compiling rules...
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Questions to resolve banner */}
+              {doubts.length > 0 && (
+                <div className="border-t border-line bg-accent/5 p-3.5 space-y-1.5">
+                  <span className="text-[9px] font-extrabold text-accent uppercase tracking-wider font-mono flex items-center gap-1">
+                    <HelpCircle className="h-3 w-3" /> Clarification Required:
+                  </span>
+                  <ul className="list-disc pl-4 text-[10px] text-ink-muted leading-relaxed space-y-0.5">
+                    {doubts.map((d, i) => (
+                      <li key={i}>{d}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Chat entry form */}
+              <div className="border-t border-line p-3 flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Reply to Quant Coach doubts..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                  disabled={loadingChat}
+                  className="flex-1 px-4 py-2 text-xs rounded-xl border border-line bg-bg-elev/40 text-ink focus:outline-none focus:border-accent transition-colors"
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!chatInput.trim() || loadingChat}
+                  className="p-2.5 rounded-xl bg-accent text-bg hover:bg-accent/80 active:scale-95 disabled:opacity-50 transition"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
 
-            {/* Chat Messages viewport */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin select-text">
-              {chatMessages.map((m, idx) => (
-                <div
-                  key={idx}
-                  className={`flex flex-col gap-1.5 max-w-[85%] ${m.role === "user" ? "ml-auto items-end" : "mr-auto items-start"}`}
+            {/* Right panel: dynamic spec card */}
+            <div className="space-y-4">
+              <SpecCard spec={currentSpec} />
+              
+              <div className="pt-2">
+                <button
+                  onClick={reset}
+                  className="w-full h-11 rounded-xl border border-line/70 bg-bg-elev/60 font-bold text-[13px] text-ink-muted hover:text-ink active:scale-[0.98] transition"
                 >
-                  <span className="text-[8px] font-mono text-ink-subtle uppercase">
-                    {m.role === "user" ? "You" : "Quant Coach"}
-                  </span>
-                  <div className={`p-3 rounded-2xl text-[12px] leading-relaxed border
-                    ${m.role === "user" 
-                      ? "bg-bg-elev border-line text-ink" 
-                      : "bg-accent/5 border-accent/15 text-ink-muted"}`}
-                  >
-                    {m.content}
+                  Start Over
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── MOBILE NATIVE ANDROID MESSENGER LAYOUT ── */}
+          <div className="flex lg:hidden flex-col bg-bg-card/25 border border-line rounded-2xl h-[580px] overflow-hidden relative shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+            
+            {/* Top Bar Header */}
+            <div className="px-4 py-3 border-b border-line/45 flex items-center justify-between bg-bg-elev/30 backdrop-blur-md">
+              <div className="flex items-center gap-2.5">
+                {/* Bot Avatar */}
+                <div className="relative h-9 w-9 rounded-full flex items-center justify-center bg-accent/15 border border-accent/25 text-accent flex-none">
+                  <Sparkles className="h-4.5 w-4.5" />
+                  <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-accent border border-bg-card animate-pulse" />
+                </div>
+                <div>
+                  <div className="text-[12px] font-black tracking-tight text-white leading-tight">
+                    AI Quant Coach
+                  </div>
+                  <div className="text-[9px] text-accent font-semibold flex items-center gap-1 mt-0.5">
+                    {loadingChat ? (
+                      <span className="animate-pulse">typing...</span>
+                    ) : (
+                      <>
+                        <span className="h-1 w-1 rounded-full bg-accent" />
+                        online
+                      </>
+                    )}
                   </div>
                 </div>
-              ))}
+              </div>
+              
+              {/* Header actions */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsSpecSheetOpen(true)}
+                  className="h-8 px-2.5 rounded-xl border border-line bg-bg-elev/60 hover:bg-bg-elev hover:text-accent font-bold text-[10px] text-ink-muted flex items-center gap-1 active:scale-95 transition"
+                >
+                  <Terminal className="h-3.5 w-3.5 text-accent" />
+                  Spec
+                  {currentSpec && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse ml-0.5" />
+                  )}
+                </button>
+                <button
+                  onClick={reset}
+                  className="h-8 w-8 rounded-xl border border-line bg-bg-elev/60 text-ink-muted hover:text-red-400 flex items-center justify-center active:scale-95 transition"
+                  title="Restart"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Chat message bubbles viewport */}
+            <div className="flex-1 overflow-y-auto p-3.5 space-y-4.5 scrollbar-thin select-text pb-20">
+              {chatMessages.map((m, idx) => {
+                const isBot = m.role === "assistant";
+                return (
+                  <div
+                    key={idx}
+                    className={`flex items-end gap-2 max-w-[88%] ${isBot ? "mr-auto" : "ml-auto flex-row-reverse"}`}
+                  >
+                    {isBot && (
+                      <div className="h-7 w-7 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-[9px] text-accent flex-none font-bold">
+                        QC
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-[8px] font-mono text-ink-subtle uppercase px-1 leading-none">
+                        {isBot ? "Quant Coach" : "You"}
+                      </span>
+                      <div
+                        className={`p-3 rounded-2xl text-[12px] leading-relaxed relative border
+                          ${isBot 
+                            ? "bg-bg-elev/80 border-line/50 text-ink-muted rounded-bl-sm" 
+                            : "bg-gradient-to-r from-emerald-500 to-teal-500 border-transparent text-[#0a0e1a] font-bold rounded-br-sm shadow-md"}`}
+                      >
+                        {m.content}
+                        {!isBot && (
+                          <span className="inline-flex text-[9px] text-[#0a0e1a]/60 ml-1.5 align-middle select-none">
+                            ✓✓
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
               
               {loadingChat && (
-                <div className="flex items-center gap-2 text-ink-subtle text-[11px] italic font-mono pl-2">
-                  <Loader2 className="h-3 w-3 animate-spin text-accent" />
+                <div className="flex items-center gap-2 text-accent/80 text-[10.5px] italic font-mono pl-9 py-1 animate-pulse">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />
                   Coach compiling rules...
                 </div>
               )}
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Questions to resolve banner */}
+            {/* Floating warning banner for doubts */}
             {doubts.length > 0 && (
-              <div className="border-t border-line bg-accent/5 p-3.5 space-y-1.5">
-                <span className="text-[9px] font-extrabold text-accent uppercase tracking-wider font-mono flex items-center gap-1">
-                  <HelpCircle className="h-3 w-3" /> Clarification Required:
-                </span>
-                <ul className="list-disc pl-4 text-[10px] text-ink-muted leading-relaxed space-y-0.5">
-                  {doubts.map((d, i) => (
-                    <li key={i}>{d}</li>
-                  ))}
-                </ul>
+              <div className="absolute bottom-[58px] left-0 right-0 border-t border-line/60 bg-[#0c1224]/90 backdrop-blur-md px-3.5 py-2 space-y-1.5 z-10 transition-all duration-200">
+                <button 
+                  onClick={() => setIsDoubtsExpanded(!isDoubtsExpanded)}
+                  className="w-full flex items-center justify-between text-[9px] font-black text-accent uppercase tracking-wider font-mono"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <HelpCircle className="h-3.5 w-3.5 text-accent animate-pulse" /> 
+                    Clarification Required ({doubts.length} items)
+                  </span>
+                  <span className="text-ink-subtle hover:text-ink">
+                    {isDoubtsExpanded ? "[ Collapse ]" : "[ Expand ]"}
+                  </span>
+                </button>
+                {isDoubtsExpanded && (
+                  <ul className="list-disc pl-4 text-[10px] text-ink-muted leading-relaxed space-y-0.5 animate-fade-in max-h-[120px] overflow-y-auto">
+                    {doubts.map((d, i) => (
+                      <li key={i}>{d}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 
-            {/* Chat entry form */}
-            <div className="border-t border-line p-3 flex gap-2">
-              <input
-                type="text"
-                placeholder="Reply to Quant Coach doubts..."
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                disabled={loadingChat}
-                className="flex-1 px-4 py-2 text-xs rounded-xl border border-line bg-bg-elev/40 text-ink focus:outline-none focus:border-accent transition-colors"
-              />
+            {/* Bottom sticky input controls */}
+            <div className="absolute bottom-0 left-0 right-0 border-t border-line bg-bg-card p-2 flex gap-2 items-center z-20">
+              <div className="flex-1 rounded-3xl border border-line bg-bg-elev/80 px-4 py-2 flex items-center shadow-inner">
+                <input
+                  type="text"
+                  placeholder="Reply to Quant Coach doubts..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                  disabled={loadingChat}
+                  className="w-full text-[11.5px] bg-transparent text-ink placeholder:text-ink-subtle focus:outline-none"
+                />
+              </div>
               <button
                 onClick={handleSendMessage}
                 disabled={!chatInput.trim() || loadingChat}
-                className="p-2.5 rounded-xl bg-accent text-bg hover:bg-accent/80 active:scale-95 disabled:opacity-50 transition"
+                className="h-9 w-9 rounded-full bg-accent text-bg hover:bg-accent/80 active:scale-90 disabled:opacity-40 transition flex items-center justify-center flex-none shadow-md shadow-accent/15"
               >
-                <Send className="h-3.5 w-3.5" />
+                <Send className="h-3.5 w-3.5 text-bg" />
               </button>
             </div>
+
           </div>
 
-          {/* Right panel: dynamic spec accumulators */}
-          <div className="space-y-4">
-            <SpecCard spec={currentSpec} />
-            
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <button
-                onClick={reset}
-                className="h-11 rounded-xl border border-line/70 bg-bg-elev/60 font-bold text-[13px] text-ink-muted hover:text-ink active:scale-[0.98] transition"
+          {/* Slide-up Bottom Sheet for mobile spec card */}
+          {isSpecSheetOpen && (
+            <div className="fixed inset-0 z-50 flex flex-col justify-end">
+              {/* Backdrop Overlay */}
+              <div
+                onClick={() => setIsSpecSheetOpen(false)}
+                className="absolute inset-0 bg-black/75 backdrop-blur-sm transition-opacity duration-300"
+              />
+              
+              {/* Drawer Sheet */}
+              <div
+                className="relative bg-bg-card rounded-t-3xl border-t border-line/65 p-5 max-h-[80vh] overflow-y-auto select-none shadow-2xl flex flex-col gap-4 pb-8 z-10 animate-slide-up"
               >
-                Start Over
-              </button>
-              <button
-                disabled={!currentSpec}
-                onClick={handleRunBacktest}
-                className="h-11 rounded-xl font-bold text-[13px] active:scale-[0.98] transition inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
-                style={{ background: "var(--accent)", color: "var(--bg)" }}
-              >
-                <Play className="h-3 w-3 fill-current" /> Fast Test
-              </button>
+                {/* Drag handle decorator */}
+                <div className="w-12 h-1 bg-line/60 rounded-full mx-auto -mt-1 mb-2 flex-none" />
+                
+                {/* Close Button */}
+                <button
+                  onClick={() => setIsSpecSheetOpen(false)}
+                  className="absolute top-4 right-4 p-1.5 rounded-lg border border-line bg-bg-elev text-ink-muted hover:text-ink active:scale-95 transition"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+
+                <div className="text-xs font-bold text-ink-muted px-1 flex-none">
+                  Generated Spec Ruleset
+                </div>
+
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  <SpecCard spec={currentSpec} />
+                </div>
+
+                <div className="flex gap-3 mt-2 flex-none">
+                  <button
+                    onClick={() => {
+                      reset();
+                      setIsSpecSheetOpen(false);
+                    }}
+                    className="flex-1 h-11 rounded-xl border border-line bg-bg-elev text-xs font-bold text-red-400 hover:bg-red-500/10 active:scale-95 transition"
+                  >
+                    Start Over
+                  </button>
+                  <button
+                    onClick={() => setIsSpecSheetOpen(false)}
+                    className="flex-1 h-11 rounded-xl bg-accent text-bg text-xs font-bold active:scale-95 transition"
+                  >
+                    Continue Chat
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
         </div>
       )}
 
@@ -654,8 +865,37 @@ function StrategyLabBody() {
         <div className="space-y-4 animate-fade-in">
           <SpecCard spec={currentSpec} />
           <SafetyChecks />
-          
-          <div className="grid grid-cols-2 gap-3 pt-2">
+
+          {userTier === "free" && (
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-3.5 py-2.5 flex items-center gap-2.5">
+              <Zap className="h-3.5 w-3.5 text-amber-500 flex-none" />
+              <p className="text-[11px] font-semibold leading-snug text-amber-400/90">
+                {limit - runCount <= 0
+                  ? "You've used your free backtest — upgrade to run more."
+                  : `${limit - runCount} free backtest${limit - runCount === 1 ? "" : "s"} remaining — make it count.`}
+              </p>
+            </div>
+          )}
+
+          {/* Mobile view controls */}
+          <div className="flex lg:hidden flex-col gap-3 pt-2">
+            <button
+              onClick={handleRunBacktest}
+              className="h-13 w-full rounded-2xl font-black tracking-wide text-[13px] active:scale-[0.98] transition inline-flex items-center justify-center gap-2 shadow-lg shadow-accent/25"
+              style={{ background: "var(--accent)", color: "var(--bg)" }}
+            >
+              <Play className="h-4 w-4 fill-current text-bg" /> RUN WALK-FORWARD BACKTEST
+            </button>
+            <button
+              onClick={() => setStage("chat")}
+              className="h-11 w-full rounded-xl border border-line/70 bg-bg-elev/60 font-bold text-[13px] text-ink-muted hover:text-ink active:scale-[0.98] transition"
+            >
+              Refine Strategy Rules
+            </button>
+          </div>
+
+          {/* Desktop view controls */}
+          <div className="hidden lg:grid lg:grid-cols-2 gap-3 pt-2">
             <button
               onClick={() => setStage("chat")}
               className="h-11 rounded-xl border border-line/70 bg-bg-elev/60 font-bold text-[13px] text-ink-muted hover:text-ink active:scale-[0.98] transition"
@@ -667,7 +907,7 @@ function StrategyLabBody() {
               className="h-11 rounded-xl font-bold text-[13px] active:scale-[0.98] transition inline-flex items-center justify-center gap-1.5"
               style={{ background: "var(--accent)", color: "var(--bg)" }}
             >
-              <Play className="h-3 w-3 fill-current" /> Run backtest
+              <Play className="h-3 w-3 fill-current text-bg" /> Run backtest
             </button>
           </div>
         </div>
@@ -707,6 +947,9 @@ function StrategyLabBody() {
                 <div className="text-[11px] text-ink-muted mt-1">
                   backtest return · 8.2 years · {currentSpec?.asset || "BTC/USDT"}
                 </div>
+                <div className="text-[12px] text-ink font-semibold mt-2 leading-snug max-w-[260px]">
+                  {verdictFor(backtestStats)}
+                </div>
               </div>
               <div
                 className="h-12 w-12 rounded-2xl flex items-center justify-center bg-accent/18 text-accent"
@@ -721,10 +964,10 @@ function StrategyLabBody() {
 
           {/* Metrics grid */}
           <div className="grid grid-cols-2 gap-3">
-            <MetricCard k="Win-rate" v={`${backtestStats.win_rate_pct}%`} sub={`${backtestStats.trade_count} trades`} />
-            <MetricCard k="Sharpe" v={String(backtestStats.sharpe_ratio)} sub="risk-adj" highlight />
-            <MetricCard k="Max DD" v={`−${backtestStats.max_drawdown_pct}%`} sub="recovered 18d" tone="danger" />
-            <MetricCard k="Profit factor" v={String(backtestStats.profit_factor)} sub="gross/loss" />
+            <MetricCard k="Win-rate" v={`${backtestStats.win_rate_pct}%`} sub={`${backtestStats.trade_count} trades`} info="How often trades closed in profit. Even 40% can be profitable if winners outsize losers." />
+            <MetricCard k="Sharpe" v={String(backtestStats.sharpe_ratio)} sub="risk-adj" highlight info="Return earned per unit of risk taken. Above 1 is solid, above 2 is excellent." />
+            <MetricCard k="Max DD" v={`−${backtestStats.max_drawdown_pct}%`} sub="recovered 18d" tone="danger" info="The worst peak-to-bottom drop. This is the pain you'd have to sit through." />
+            <MetricCard k="Profit factor" v={String(backtestStats.profit_factor)} sub="gross/loss" info="Total profits divided by total losses. Above 1.5 means winners clearly outweigh losers." />
           </div>
 
           {/* Sleek Yearly Breakdown Cards */}
@@ -783,12 +1026,12 @@ function StrategyLabBody() {
                 </p>
 
 
-                {/* Upsell box teaser */}
-                <div className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-xl space-y-2 flex gap-3.5 items-start select-none filter blur-[1.5px] opacity-40">
-                  <Lock className="h-5 w-5 text-amber-500 flex-none" />
+                {/* Sample finding preview */}
+                <div className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-xl space-y-2 flex gap-3.5 items-start">
+                  <Sparkles className="h-5 w-5 text-amber-500 flex-none" />
                   <div className="space-y-1">
-                    <h5 className="text-[11px] font-bold text-ink uppercase tracking-wide">Analysis Blocked</h5>
-                    <p className="text-[10px] text-ink-muted">Whipsaw analysis found 4 entry false-breakouts. ATR expansion trigger is recommended.</p>
+                    <h5 className="text-[11px] font-bold text-ink uppercase tracking-wide">Sample finding</h5>
+                    <p className="text-[10px] text-ink-muted">Whipsaw analysis found 4 entry false-breakouts. ATR expansion trigger is recommended. The full audit explains how to fix each weakness.</p>
                   </div>
                 </div>
 
@@ -796,7 +1039,7 @@ function StrategyLabBody() {
                   onClick={handleRequestAudit}
                   className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-2.5 text-xs font-bold text-bg transition-all select-none shadow-lg shadow-amber-500/10 active:scale-95"
                 >
-                  <Lock className="h-3.5 w-3.5 text-bg" /> Unlock AI Audit Coach
+                  <Lock className="h-3.5 w-3.5 text-bg" /> Unlock Full Audit & Fixes
                 </button>
               </div>
             ) : (
@@ -866,7 +1109,8 @@ function StrategyLabBody() {
                   setUpsellReason("limit");
                   setShowUpgradeModal(true);
                 } else {
-                  alert("Strategy saved to your Live Dashboard!");
+                  hapticSuccess();
+                  toast("Strategy saved to your Live Dashboard!", "success");
                 }
               }}
               className="h-11 rounded-xl font-bold text-[13px] active:scale-[0.98] transition inline-flex items-center justify-center gap-1.5"
@@ -931,7 +1175,7 @@ function StrategyLabBody() {
               {/* Stripe simulated checkout triggers */}
               <div className="w-full mt-6 space-y-3">
                 <button
-                  onClick={() => alert("Simulated Stripe secure payment flow launched!")}
+                  onClick={() => toast("Simulated Stripe secure payment flow launched!", "info")}
                   className="btn-primary w-full py-3.5 shadow-lg shadow-accent/20 bg-amber-500 hover:bg-amber-600 text-bg font-bold font-mono text-[12px] flex items-center justify-center gap-1.5"
                 >
                   <Zap className="h-4 w-4 fill-current text-bg" /> Unlock Quant Terminal Plan
@@ -1023,32 +1267,66 @@ function StrategyLabBody() {
 }
 
 /* ───────── Results Metric Card ───────── */
+function verdictFor(stats: {
+  sharpe_ratio: number;
+  max_drawdown_pct: number;
+  win_rate_pct: number;
+  total_return_pct: number;
+}) {
+  if (stats.total_return_pct < 0) {
+    return "This strategy lost money over the test period — refine the rules before going further.";
+  }
+  if (stats.sharpe_ratio >= 1.5 && stats.max_drawdown_pct <= 25) {
+    return "Strong result: solid returns for the risk taken, with drawdowns most traders could stomach.";
+  }
+  if (stats.sharpe_ratio >= 1) {
+    return "Decent edge — profitable with reasonable risk, though there's room to tighten the rough patches.";
+  }
+  if (stats.max_drawdown_pct > 40) {
+    return `Profitable, but the −${stats.max_drawdown_pct}% drawdown would be brutal to sit through. Consider tighter risk rules.`;
+  }
+  return "Profitable overall, but the returns are thin for the risk involved — worth refining before trusting it.";
+}
+
 function MetricCard({
   k,
   v,
   sub,
   tone,
   highlight,
+  info,
 }: {
   k: string;
   v: ReactNode;
   sub: string;
   tone?: "danger";
   highlight?: boolean;
+  info?: string;
 }) {
+  const [showInfo, setShowInfo] = useState(false);
   const color = tone === "danger" ? "#fda4af" : highlight ? "var(--accent)" : "var(--ink)";
   return (
-    <div className="rounded-xl border border-line/60 bg-bg-card/45 p-3.5">
-      <div className="text-[9px] uppercase tracking-[0.18em] font-bold text-ink-subtle">
-        {k}
+    <div
+      className={`rounded-xl border border-line/60 bg-bg-card/45 p-3.5 ${info ? "cursor-pointer" : ""}`}
+      onClick={info ? () => setShowInfo((s) => !s) : undefined}
+    >
+      <div className="text-[9px] uppercase tracking-[0.18em] font-bold text-ink-subtle flex items-center justify-between">
+        <span>{k}</span>
+        {info && <HelpCircle className="h-3 w-3 text-ink-subtle/70" />}
       </div>
-      <div
-        className="font-mono tabular-nums text-[22px] font-extrabold mt-1"
-        style={{ color }}
-      >
-        {v}
-      </div>
-      <div className="text-[10px] text-ink-subtle mt-0.5">{sub}</div>
+      {showInfo && info ? (
+        <p className="text-[10px] text-ink-muted leading-snug mt-1.5">{info}</p>
+      ) : (
+        <>
+          <div
+            className="font-mono tabular-nums text-[22px] font-extrabold mt-1"
+            style={{ color }}
+          >
+            {v}
+          </div>
+          <div className="text-[10px] text-ink-subtle mt-0.5">{sub}</div>
+        </>
+      )}
     </div>
   );
 }

@@ -110,6 +110,11 @@ body.is-native .selectable {
   user-select: text;
 }
 
+/* Hide floating bottom nav while the native keyboard is open */
+body.keyboard-open .bottom-nav {
+  display: none;
+}
+
 /* Hide scrollbars inside Capacitor to maintain clean native feel */
 body.is-native::-webkit-scrollbar,
 body.is-native *::-webkit-scrollbar {
