@@ -387,8 +387,12 @@ function DashboardHome({
                 Your strategies · backtest PnL
               </div>
               <div className="flex items-baseline gap-2 mt-1.5">
-                {isEmpty ? (
-                  <span className="text-[44px] font-extrabold tracking-tight text-ink-muted tabular-nums">
+                {isLoading ? (
+                  <div className="h-[44px] flex items-center" aria-hidden>
+                    <div className="h-9 w-40 rounded-lg bg-bg-elev/60 animate-pulse" />
+                  </div>
+                ) : isEmpty ? (
+                  <span className="text-[44px] font-extrabold tracking-tight text-ink-muted tabular-nums font-mono">
                     +0.0%
                   </span>
                 ) : (
@@ -401,7 +405,10 @@ function DashboardHome({
                   />
                 )}
               </div>
-              {!isEmpty && (
+              {isLoading && (
+                <div className="h-4 w-48 rounded bg-bg-elev/40 animate-pulse mt-1.5" aria-hidden />
+              )}
+              {!isLoading && !isEmpty && (
                 <div className="flex items-center gap-2 mt-1 text-xs flex-wrap">
                   <span
                     className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-bold"
@@ -461,12 +468,16 @@ function DashboardHome({
                 <div className="text-[9px] uppercase tracking-[0.15em] text-ink-subtle font-bold">
                   {k}
                 </div>
-                <div
-                  className="font-mono tabular-nums text-sm font-bold mt-0.5"
-                  style={{ color: c }}
-                >
-                  {v}
-                </div>
+                {isLoading ? (
+                  <div className="h-4 w-10 mx-auto rounded bg-bg-elev/70 animate-pulse mt-1" aria-hidden />
+                ) : (
+                  <div
+                    className="font-mono tabular-nums text-sm font-bold mt-0.5"
+                    style={{ color: c }}
+                  >
+                    {v}
+                  </div>
+                )}
               </div>
             ))}
           </div>
