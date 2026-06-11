@@ -35,7 +35,8 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "../lib/toast";
-import { hapticSuccess } from "../lib/haptics";
+import { hapticSuccess, hapticLight } from "../lib/haptics";
+import { startDictation, type DictationHandle } from "../lib/speech";
 
 // Modular Sub-components Imports
 import { Stepper } from "./strategylab/Stepper";
@@ -67,6 +68,23 @@ const TIER_LIMITS: Record<string, number> = {
   trader: 5,
   auto: 999999,
 };
+
+const INDICATOR_CHIPS = [
+  { label: "RSI", phrase: "using RSI(14)" },
+  { label: "MACD", phrase: "with MACD crossover confirmation" },
+  { label: "EMA cross", phrase: "when the 9 EMA crosses above the 21 EMA" },
+  { label: "Bollinger", phrase: "when price touches the lower Bollinger Band" },
+  { label: "ATR stop", phrase: "with a stop loss at 1.5 ATR" },
+  { label: "Volume", phrase: "confirmed by above-average volume" },
+];
+
+const TIMEFRAME_CHIPS = [
+  { label: "15m", phrase: "on the 15m timeframe" },
+  { label: "1H", phrase: "on the 1H timeframe" },
+  { label: "4H", phrase: "on the 4H timeframe" },
+  { label: "1D", phrase: "on the daily timeframe" },
+  { label: "1W", phrase: "on the weekly timeframe" },
+];
 
 export function StrategyLab() {
   return <StrategyLabBody />;
@@ -114,6 +132,12 @@ function StrategyLabBody() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSpecSheetOpen, setIsSpecSheetOpen] = useState(false);
   const [isDoubtsExpanded, setIsDoubtsExpanded] = useState(false);
+
+  // Prompt helpers: chip pickers + voice dictation
+  const [openPicker, setOpenPicker] = useState<"indicators" | "timeframes" | null>(null);
+  const [listening, setListening] = useState(false);
+  const dictationRef = useRef<DictationHandle | null>(null);
+  const dictationBaseRef = useRef("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -187,6 +211,56 @@ function StrategyLabBody() {
   }
 
   // Initial compilation trigger
+  function injectPhrase(phrase: string) {
+    hapticLight();
+    setPrompt((prev) => {
+      const base = prev.trimEnd();
+      if (base.toLowerCase().includes(phrase.toLowerCase())) return prev;
+      return base ? `${base} ${phrase}` : phrase;
+    });
+  }
+
+  async function handleMicToggle() {
+    hapticLight();
+    if (listening) {
+      dictationRef.current?.stop();
+      dictationRef.current = null;
+      setListening(false);
+      return;
+    }
+
+    dictationBaseRef.current = prompt.trimEnd();
+    const handle = await startDictation(
+      (transcript) => {
+        const base = dictationBaseRef.current;
+        setPrompt(base ? `${base} ${transcript}` : transcript);
+      },
+      () => {
+        dictationRef.current = null;
+        setListening(false);
+      }
+    );
+
+    if (!handle) {
+      toast("Voice input isn't available on this device.", "info");
+      return;
+    }
+    dictationRef.current = handle;
+    setListening(true);
+  }
+
+  // Stop dictation if the user leaves the input stage or the page
+  useEffect(() => {
+    if (stage !== "input" && dictationRef.current) {
+      dictationRef.current.stop();
+      dictationRef.current = null;
+      setListening(false);
+    }
+    return () => {
+      dictationRef.current?.stop();
+    };
+  }, [stage]);
+
   function handleInitialBuild() {
     if (!prompt.trim()) return;
     setStage("compiling");
@@ -451,14 +525,39 @@ function StrategyLabBody() {
               <div className="flex gap-2">
                 <button
                   aria-label="Voice input"
-                  className="h-9 w-9 rounded-lg border border-line/60 bg-bg-elev flex items-center justify-center text-ink-muted hover:text-ink active:scale-95 transition"
+                  onClick={handleMicToggle}
+                  className={`h-9 w-9 rounded-lg border flex items-center justify-center active:scale-95 transition ${
+                    listening
+                      ? "border-red-400/50 bg-red-500/15 text-red-400 animate-pulse"
+                      : "border-line/60 bg-bg-elev text-ink-muted hover:text-ink"
+                  }`}
                 >
                   <Mic className="h-[15px] w-[15px]" />
                 </button>
-                <button className="text-[11px] font-bold text-ink-muted hover:text-ink px-3 h-9 rounded-lg border border-line/60 bg-bg-elev active:scale-95 transition">
+                <button
+                  onClick={() => {
+                    hapticLight();
+                    setOpenPicker(openPicker === "indicators" ? null : "indicators");
+                  }}
+                  className={`text-[11px] font-bold px-3 h-9 rounded-lg border active:scale-95 transition ${
+                    openPicker === "indicators"
+                      ? "border-accent/50 bg-accent/10 text-accent"
+                      : "border-line/60 bg-bg-elev text-ink-muted hover:text-ink"
+                  }`}
+                >
                   + indicators
                 </button>
-                <button className="text-[11px] font-bold text-ink-muted hover:text-ink px-3 h-9 rounded-lg border border-line/60 bg-bg-elev active:scale-95 transition">
+                <button
+                  onClick={() => {
+                    hapticLight();
+                    setOpenPicker(openPicker === "timeframes" ? null : "timeframes");
+                  }}
+                  className={`text-[11px] font-bold px-3 h-9 rounded-lg border active:scale-95 transition ${
+                    openPicker === "timeframes"
+                      ? "border-accent/50 bg-accent/10 text-accent"
+                      : "border-line/60 bg-bg-elev text-ink-muted hover:text-ink"
+                  }`}
+                >
                   + timeframes
                 </button>
               </div>
@@ -471,6 +570,28 @@ function StrategyLabBody() {
                 Draft Rules <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
+
+            {listening && (
+              <p className="mt-2 text-[10px] text-red-400/90 font-semibold animate-fade-in">
+                Listening… speak your strategy, tap the mic again to stop.
+              </p>
+            )}
+
+            {openPicker && (
+              <div className="mt-3 flex flex-wrap gap-2 animate-fade-in">
+                {(openPicker === "indicators" ? INDICATOR_CHIPS : TIMEFRAME_CHIPS).map(
+                  (chip) => (
+                    <button
+                      key={chip.label}
+                      onClick={() => injectPhrase(chip.phrase)}
+                      className="text-[11px] font-bold px-2.5 h-8 rounded-lg border border-accent/30 bg-accent/[0.06] text-accent hover:bg-accent/15 active:scale-95 transition"
+                    >
+                      {chip.label}
+                    </button>
+                  )
+                )}
+              </div>
+            )}
           </div>
 
           {/* Saved Strategies */}
