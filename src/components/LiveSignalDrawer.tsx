@@ -455,7 +455,10 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
           `}</style>
         </div>
 
-        {hasTradeLevels && progress != null && (
+        {hasTradeLevels && (
+          /* Rendered immediately from the call's own levels — the marker rests
+             at center until the first live tick, so the section never pops in
+             after the drawer is already open. */
           <div className="px-5 py-4 border-b border-line/40 space-y-2">
             <div
               className="relative h-2 rounded-full overflow-hidden"
@@ -470,16 +473,16 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
               <div
                 className="absolute inset-y-0 transition-all duration-300 ease-out"
                 style={
-                  progress >= 0
+                  (progress ?? 0) >= 0
                     ? {
                         left: "50%",
-                        width: `${progress * 50}%`,
+                        width: `${(progress ?? 0) * 50}%`,
                         background: "var(--accent)",
                         borderRadius: "0 9999px 9999px 0",
                       }
                     : {
-                        left: `${50 + progress * 50}%`,
-                        width: `${-progress * 50}%`,
+                        left: `${50 + (progress ?? 0) * 50}%`,
+                        width: `${-(progress ?? 0) * 50}%`,
                         background: "var(--negative)",
                         borderRadius: "9999px 0 0 9999px",
                       }
@@ -488,12 +491,18 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
               <div
                 className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-3.5 rounded-full border-2 transition-all duration-300 ease-out"
                 style={{
-                  left: `${50 + progress * 50}%`,
+                  left: `${50 + (progress ?? 0) * 50}%`,
                   background: "var(--bg)",
-                  borderColor: progress >= 0 ? "var(--accent)" : "var(--negative)",
-                  boxShadow: isOpen
-                    ? `0 0 12px ${progress >= 0 ? "var(--accent)" : "var(--negative)"}`
-                    : "none",
+                  borderColor:
+                    progress == null
+                      ? "var(--ink-45)"
+                      : progress >= 0
+                        ? "var(--accent)"
+                        : "var(--negative)",
+                  boxShadow:
+                    isOpen && progress != null
+                      ? `0 0 12px ${progress >= 0 ? "var(--accent)" : "var(--negative)"}`
+                      : "none",
                 }}
               />
             </div>
