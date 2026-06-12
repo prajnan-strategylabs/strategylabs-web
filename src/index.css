@@ -151,6 +151,18 @@
 .stagger > .animate-enter:nth-child(5) { animation-delay: 160ms; }
 .stagger > .animate-enter:nth-child(n+6) { animation-delay: 200ms; }
 
+/* Invalid-input shake (OTP, form errors) */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+.animate-shake {
+  animation: shake 360ms var(--ease-out-quart);
+}
+
 /* Page/tab transition (DESIGN.md §6) */
 @keyframes page-enter {
   from { opacity: 0; transform: translateY(12px); }
@@ -197,9 +209,13 @@ body.is-native .selectable {
   user-select: text;
 }
 
-/* Hide floating bottom nav while the native keyboard is open */
+/* Slide the bottom nav away while the native keyboard is open */
+.bottom-nav {
+  transition: transform 200ms var(--ease-out-quart);
+}
 body.keyboard-open .bottom-nav {
-  display: none;
+  transform: translateY(110%);
+  pointer-events: none;
 }
 
 /* Hide scrollbars inside Capacitor to maintain clean native feel */

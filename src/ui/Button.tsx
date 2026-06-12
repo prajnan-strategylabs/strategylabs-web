@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { Loader2 } from "lucide-react";
 import { hapticLight } from "../lib/haptics";
 
 type Variant = "primary" | "secondary" | "ghost" | "destructive";
@@ -26,12 +27,17 @@ export function Button({
   size = "md",
   children,
   className = "",
+  loading = false,
+  disabled,
   onClick,
   ...rest
 }: {
   variant?: Variant;
   size?: Size;
   children: ReactNode;
+  /** Shows an inline spinner and disables the button — label stays put so
+   *  the button never changes width mid-press. */
+  loading?: boolean;
 } & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
@@ -39,11 +45,13 @@ export function Button({
         hapticLight();
         onClick?.(e);
       }}
+      disabled={disabled || loading}
       className={`inline-flex items-center justify-center select-none
         transition-transform duration-press ease-out-quart active:scale-[0.97]
         disabled:active:scale-100 ${SIZES[size]} ${VARIANTS[variant]} ${className}`}
       {...rest}
     >
+      {loading && <Loader2 className="h-4 w-4 animate-spin" />}
       {children}
     </button>
   );

@@ -189,15 +189,18 @@ export function NumFlow({
   suffix = "",
   decimals = 0,
   className = "",
+  countUp = false,
 }: {
   value: number;
   prefix?: string;
   suffix?: string;
   decimals?: number;
   className?: string;
+  /** Animate from 0 on first mount (one-time count-up on data arrival). */
+  countUp?: boolean;
 }) {
-  const [shown, setShown] = useState(value);
-  const shownRef = useRef(value);
+  const [shown, setShown] = useState(countUp ? 0 : value);
+  const shownRef = useRef(countUp ? 0 : value);
   useEffect(() => {
     let raf = 0;
     const start = shownRef.current;

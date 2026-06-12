@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { LogoLockup } from "../components/Logo";
 import { Mail, ArrowRight, CheckCircle2, AlertCircle } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
+import { Button } from "../ui";
+import { hapticLight } from "../lib/haptics";
 
 export function Login() {
   const { user, signIn, verifyOtp, isSandbox } = useAuth();
@@ -14,6 +16,8 @@ export function Login() {
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shake, setShake] = useState(false);
+  const codeInputRef = useRef<HTMLInputElement>(null);
 
   // If already logged in, redirect straight to dashboard
   useEffect(() => {
@@ -58,21 +62,31 @@ export function Login() {
     }
   }
 
-  async function handleVerifyCode(e: React.FormEvent) {
-    e.preventDefault();
-    if (code.length !== 6 || verifying) return;
+  async function verifyCode(codeToVerify: string) {
+    if (codeToVerify.length !== 6 || verifying) return;
 
     setVerifying(true);
     setError(null);
 
-    const { error: verifyError } = await verifyOtp(email, code);
+    const { error: verifyError } = await verifyOtp(email, codeToVerify);
     setVerifying(false);
 
     if (verifyError) {
       setError(verifyError.message || "Invalid verification code. Please try again.");
+      // Wrong-code language: shake, clear, refocus, haptic
+      hapticLight();
+      setCode("");
+      setShake(true);
+      window.setTimeout(() => setShake(false), 400);
+      codeInputRef.current?.focus();
     } else {
       navigate("/dashboard");
     }
+  }
+
+  function handleVerifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    void verifyCode(code);
   }
 
   async function handleResendEmail(e: React.MouseEvent) {
@@ -136,33 +150,44 @@ export function Login() {
                   6-Digit OTP Code
                 </label>
                 <input
+                  ref={codeInputRef}
                   type="text"
+                  inputMode="numeric"
                   id="code"
                   required
+                  autoFocus
                   maxLength={6}
                   value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ""))}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^0-9]/g, "");
+                    setCode(v);
+                    // Auto-submit the moment the 6th digit lands
+                    if (v.length === 6) void verifyCode(v);
+                  }}
                   placeholder="••••••"
                   disabled={verifying}
-                  className="block w-full text-center tracking-[0.5em] font-mono text-xl rounded-lg border border-line bg-bg-elev/40 py-3 text-ink outline-none transition-colors focus:border-accent disabled:opacity-60 mt-2"
+                  className={`block w-full text-center tracking-[0.5em] font-mono text-xl rounded-lg border bg-bg-elev/40 py-3 text-ink outline-none transition-colors focus:border-accent disabled:opacity-60 mt-2 ${
+                    shake ? "animate-shake border-negative" : "border-line"
+                  }`}
                 />
               </div>
 
               {error && (
-                <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400 font-sans">
+                <div className="flex items-start gap-2 rounded-lg border border-negative/30 bg-negative-soft px-3 py-2 text-sm text-negative animate-enter">
                   <AlertCircle className="mt-0.5 h-4 w-4 flex-none" />
                   <span>{error}</span>
                 </div>
               )}
 
-              <button
+              <Button
                 type="submit"
-                disabled={verifying || code.length !== 6}
-                className="btn-primary w-full py-3 text-xs flex items-center justify-center gap-2 bg-accent text-bg shadow-md shadow-accent/25 hover:scale-[1.01]"
+                size="lg"
+                loading={verifying}
+                disabled={code.length !== 6}
               >
-                {verifying ? "Verifying..." : "Verify Code & Sign In"}
+                Verify Code & Sign In
                 {!verifying && <ArrowRight className="h-3.5 w-3.5" />}
-              </button>
+              </Button>
 
               {isSandbox && (
                 <p className="text-center text-footnote text-accent/80 pt-1">
@@ -219,20 +244,16 @@ export function Login() {
             </div>
 
             {error && (
-              <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              <div className="flex items-start gap-2 rounded-lg border border-negative/30 bg-negative-soft px-3 py-2 text-sm text-negative animate-enter">
                 <AlertCircle className="mt-0.5 h-4 w-4 flex-none" />
                 <span>{error}</span>
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full py-3.5 shadow-md shadow-accent/20"
-            >
-              {loading ? "Sending..." : "Send Sign-In Code"}
+            <Button type="submit" size="lg" loading={loading}>
+              Send Sign-In Code
               {!loading && <ArrowRight className="h-4 w-4" />}
-            </button>
+            </Button>
 
             {isSandbox && (
               <p className="text-center text-xs text-accent/80 font-medium">

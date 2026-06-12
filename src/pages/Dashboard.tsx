@@ -22,6 +22,7 @@ import {
   genWalk,
 } from "../components/MobileUI";
 import { StrategyDetail } from "../components/StrategyDetail";
+import { Button } from "../ui";
 import { supabase } from "../lib/supabase";
 import { apiListStrategiesTyped, type Strategy } from "../lib/api";
 
@@ -245,9 +246,9 @@ function DashboardHome({
   }, [rows]);
 
   return (
-    <div className="space-y-5 pb-6 animate-fade-in">
+    <div className="space-y-5 pb-6 stagger">
       {/* ── Header ── */}
-      <header className="flex items-start justify-between pt-1">
+      <header className="flex items-start justify-between pt-1 animate-enter">
         <div>
           <div className="text-caption uppercase text-ink-subtle">
             {dayName} · {timeStr}
@@ -326,17 +327,14 @@ function DashboardHome({
                 </div>
               )}
 
-              {/* Glowing Activate Button */}
-              <button
+              <Button
                 type="submit"
-                disabled={savingName || !traderName.trim()}
-                className="w-full h-13 rounded-2xl bg-accent text-bg font-extrabold text-[14px] uppercase tracking-wider flex items-center justify-center gap-2 transition active:scale-[0.99] disabled:opacity-50 disabled:scale-100 disabled:shadow-none"
-                style={{
-                  boxShadow: "0 8px 24px rgba(34, 211, 170, 0.15)",
-                }}
+                size="lg"
+                loading={savingName}
+                disabled={!traderName.trim()}
               >
-                {savingName ? "Saving..." : "Save & Continue"}
-              </button>
+                Save & Continue
+              </Button>
             </form>
           </div>
         </div>,
@@ -362,7 +360,7 @@ function DashboardHome({
       )}
 
       {/* ── Hero Equity Card ── */}
-      <div className="relative overflow-hidden rounded-2xl border border-line/70 bg-bg-card/40 backdrop-blur-sm">
+      <div className="relative overflow-hidden rounded-2xl border border-line/70 bg-bg-card/40 backdrop-blur-sm animate-enter">
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -391,6 +389,7 @@ function DashboardHome({
                     decimals={1}
                     prefix="+"
                     suffix="%"
+                    countUp
                     className="text-display"
                   />
                 )}
@@ -475,7 +474,7 @@ function DashboardHome({
       </div>
 
       {/* ── Quick actions ── */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 animate-enter">
         <Link
           to="/lab"
           className="group rounded-md2 border border-line bg-surface-1 active:bg-surface-2 transition-colors duration-press p-4 text-left"
@@ -509,7 +508,7 @@ function DashboardHome({
       </div>
 
       {/* ── Strategy list ── */}
-      <section className="space-y-3">
+      <section className="space-y-3 animate-enter">
         <div className="flex items-end justify-between">
           <div>
             <h2 className="text-base font-bold tracking-tight">My strategies</h2>
@@ -545,12 +544,18 @@ function DashboardHome({
           </div>
         )}
 
-        {isEmpty && <EmptyState />}
+        {isEmpty && (
+          <div className="animate-enter">
+            <EmptyState />
+          </div>
+        )}
 
         {!isLoading && !isEmpty && (
-          <div className="space-y-2.5">
+          <div className="space-y-2.5 stagger">
             {rows!.map((s) => (
-              <StrategyRowCard key={s.id} s={s} onOpen={() => onOpen(s.id)} />
+              <div key={s.id} className="animate-enter">
+                <StrategyRowCard s={s} onOpen={() => onOpen(s.id)} />
+              </div>
             ))}
           </div>
         )}
