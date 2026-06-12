@@ -152,6 +152,37 @@ function SignalsBody() {
     }
   };
 
+  // Free tier: one live call stays fully unlocked as a credibility sample
+  // (the oldest open one); all other live calls mask their levels in-drawer.
+  const callKey = (c: V22RecentCall) => c.id ?? `${c.symbol}-${c.entry_time}`;
+  const freeSampleKey = useMemo(() => {
+    if (isPaid || !data) return null;
+    const open = data.recent_calls.filter((c) => c.status === "open");
+    if (open.length === 0) return null;
+    const oldest = open.reduce((a, b) =>
+      new Date(a.entry_time).getTime() <= new Date(b.entry_time).getTime() ? a : b
+    );
+    return callKey(oldest);
+  }, [data, isPaid]);
+
+  const selectedIsLiveLocked =
+    !isPaid &&
+    selectedCall?.status === "open" &&
+    callKey(selectedCall) !== freeSampleKey;
+  const selectedIsSample =
+    !isPaid &&
+    selectedCall?.status === "open" &&
+    callKey(selectedCall) === freeSampleKey;
+
+  const handleDrawerUpgrade = () => {
+    setSelectedCall(null);
+    window.setTimeout(() => {
+      document
+        .getElementById("plan-picker")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 320);
+  };
+
   // Re-fetch every 60s so "Live calls" stays fresh as the CSV is updated
   useEffect(() => {
     let cancelled = false;
@@ -609,7 +640,7 @@ function SignalsBody() {
           <ConnectTelegram />
 
           {/* ── Plan picker + CTA — UPSELL ONLY ── */}
-          <section className="space-y-2.5">
+          <section id="plan-picker" className="space-y-2.5">
             <div className="flex items-center justify-between">
               <h2 className="text-[13px] font-bold tracking-tight">
                 Choose your access
@@ -746,6 +777,9 @@ function SignalsBody() {
       <LiveSignalDrawer
         call={selectedCall}
         onClose={() => setSelectedCall(null)}
+        locked={selectedIsLiveLocked}
+        sample={selectedIsSample}
+        onUpgrade={handleDrawerUpgrade}
       />
 
       {/* ── History drawer — paid users open this from the header button ── */}

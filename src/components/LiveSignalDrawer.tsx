@@ -10,15 +10,24 @@ import {
   Zap,
   ArrowUp,
   ArrowDown,
+  Lock,
 } from "lucide-react";
 import type { V22RecentCall } from "../lib/api";
 import { LiveDot, Pill } from "./MobileUI";
+import { Button } from "../ui";
 import { useBinanceTradeStreams } from "../lib/useBinanceStreams";
 
 interface Props {
   call: V22RecentCall | null;
   onClose: () => void;
+  /** Free tier viewing a live call: mask entry/SL/TP, show upgrade CTA. */
+  locked?: boolean;
+  /** Free tier's one fully-unlocked live call — labeled as a preview. */
+  sample?: boolean;
+  onUpgrade?: () => void;
 }
+
+const MASKED = "$ •••••";
 
 function formatPrice(v: number | null | undefined): string {
   if (v == null) return "—";
@@ -73,7 +82,13 @@ function getHeldDuration(call: V22RecentCall, isOpen: boolean): string {
   return "—";
 }
 
-export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
+export function LiveSignalDrawer({
+  call: propCall,
+  onClose,
+  locked = false,
+  sample = false,
+  onUpgrade,
+}: Props) {
   const [localCall, setLocalCall] = useState<V22RecentCall | null>(null);
   const [active, setActive] = useState(false);
 
@@ -460,6 +475,14 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
              at center until the first live tick, so the section never pops in
              after the drawer is already open. */
           <div className="px-5 py-4 border-b border-line/40 space-y-2">
+            {sample && (
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-caption uppercase text-ink-subtle">Trade levels</span>
+                <span className="rounded-full bg-accent-soft px-2 py-0.5 text-caption uppercase text-accent">
+                  Free preview
+                </span>
+              </div>
+            )}
             <div
               className="relative h-2 rounded-full overflow-hidden"
               style={{ background: "var(--line)" }}
@@ -512,7 +535,7 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
                   <Shield className="h-2.5 w-2.5" /> Stop
                 </div>
                 <div className="font-bold mt-0.5" style={{ color: "#fda4af" }}>
-                  {formatPrice(sl)}
+                  {locked ? MASKED : formatPrice(sl)}
                 </div>
               </div>
               <div className="text-center">
@@ -520,7 +543,7 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
                   Entry
                 </div>
                 <div className="font-bold text-ink mt-0.5">
-                  {formatPrice(entry)}
+                  {locked ? MASKED : formatPrice(entry)}
                 </div>
               </div>
               <div className="text-right">
@@ -528,10 +551,30 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
                   <Target className="h-2.5 w-2.5" /> TP1
                 </div>
                 <div className="font-bold mt-0.5" style={{ color: "var(--accent)" }}>
-                  {formatPrice(tp1)}
+                  {locked ? MASKED : formatPrice(tp1)}
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── Locked levels CTA — free tier, live call ── */}
+        {locked && (
+          <div className="px-5 py-4 border-b border-line/40 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-md2 bg-warning-soft text-warning flex items-center justify-center flex-none">
+              <Lock className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-footnote font-bold text-ink">
+                Live entry & exit levels are for members
+              </div>
+              <div className="text-footnote text-ink-subtle">
+                Unlock every live signal — Trader $49/mo
+              </div>
+            </div>
+            <Button size="sm" onClick={onUpgrade}>
+              Unlock
+            </Button>
           </div>
         )}
 
@@ -544,7 +587,11 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
             color={pnlColor}
           />
           {tp2 != null && (
-            <Stat label="TP2" value={formatPrice(tp2)} color="var(--accent)" />
+            <Stat
+              label="TP2"
+              value={locked ? MASKED : formatPrice(tp2)}
+              color="var(--accent)"
+            />
           )}
           <Stat
             label="Time held"
