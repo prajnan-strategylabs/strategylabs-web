@@ -165,7 +165,7 @@ export function Login() {
               </button>
 
               {isSandbox && (
-                <p className="text-center text-[10px] text-accent/80 font-medium font-mono pt-1">
+                <p className="text-center text-footnote text-accent/80 pt-1">
                   ⚡ Sandbox Mode: Use '123456' to bypass
                 </p>
               )}

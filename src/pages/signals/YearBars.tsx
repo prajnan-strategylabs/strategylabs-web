@@ -20,7 +20,7 @@ export function YearBars({
             className="grid grid-cols-[36px_1fr_64px] gap-2.5 items-center"
           >
             <div
-              className="font-mono text-[11px] font-bold tabular-nums"
+              className="text-[11px] font-bold tabular-nums"
               style={{ color: y.is_ytd ? "var(--ink)" : "var(--ink-muted)" }}
             >
               '{String(y.year).slice(-2)}
@@ -45,7 +45,7 @@ export function YearBars({
               )}
             </div>
             <div
-              className="text-right font-mono font-extrabold text-[12px] tabular-nums"
+              className="text-right font-extrabold text-[12px] tabular-nums"
               style={{ color }}
             >
               {pos ? "+" : ""}

@@ -13,7 +13,7 @@ export function ScannerHeartbeat({
   if (!isLive) return null;
   return (
     <span
-      className="text-[10px] font-mono font-bold flex-none whitespace-nowrap flex items-center gap-1 uppercase tracking-[0.12em]"
+      className="text-[10px] font-bold flex-none whitespace-nowrap flex items-center gap-1 uppercase tracking-[0.12em]"
       style={{ color: "var(--accent)" }}
     >
       <LiveDot size={5} /> live

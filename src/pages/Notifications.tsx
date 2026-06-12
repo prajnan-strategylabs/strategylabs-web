@@ -162,7 +162,7 @@ export function Notifications() {
                   <h3 className={`text-xs font-bold text-ink ${n.unread ? "text-white" : ""}`}>
                     {n.title}
                   </h3>
-                  <span className="text-[9px] font-semibold text-ink-subtle uppercase tracking-wider font-mono">
+                  <span className="text-caption uppercase text-ink-subtle">
                     {n.time}
                   </span>
                 </div>

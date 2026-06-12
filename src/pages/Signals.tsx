@@ -498,7 +498,7 @@ function SignalsBody() {
               }}
             />
             <div className="relative p-5">
-              <div className="text-[10px] uppercase tracking-[0.2em] text-ink-subtle font-bold">
+              <div className="text-caption uppercase text-ink-subtle">
                 Cumulative return · since {liveSinceLabel}
               </div>
               <div className="flex items-baseline gap-2 mt-1.5">
@@ -542,11 +542,11 @@ function SignalsBody() {
                     key={k}
                     className="rounded-lg bg-bg-elev/50 border border-line/40 py-2"
                   >
-                    <div className="text-[9px] uppercase tracking-[0.15em] text-ink-subtle font-bold">
+                    <div className="text-caption uppercase text-ink-subtle">
                       {k}
                     </div>
                     <div
-                      className="font-mono tabular-nums text-[12px] font-bold mt-0.5"
+                      className="tabular-nums text-[12px] font-bold mt-0.5"
                       style={{ color: c }}
                     >
                       {v}
@@ -598,7 +598,7 @@ function SignalsBody() {
                   Closed PnL · audited
                 </div>
               </div>
-              <div className="text-[10px] font-mono text-ink-subtle tabular-nums">
+              <div className="text-[10px] text-ink-subtle tabular-nums">
                 {data.year_breakdown.length}y verified
               </div>
             </div>

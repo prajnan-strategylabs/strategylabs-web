@@ -75,7 +75,7 @@ export function PlanRow({
         </div>
         <div className="text-right flex-none">
           <span
-            className="font-mono tabular-nums font-extrabold text-[15px]"
+            className="tabular-nums font-extrabold text-[15px]"
             style={{ color: plan.featured ? "var(--accent)" : "var(--ink)" }}
           >
             {plan.price}
@@ -88,7 +88,7 @@ export function PlanRow({
         {plan.features.map((f) => (
           <span
             key={f}
-            className="text-[10px] font-mono text-ink-subtle flex items-center gap-1"
+            className="text-[10px] text-ink-subtle flex items-center gap-1"
           >
             <span
               className="h-1 w-1 rounded-full flex-none"

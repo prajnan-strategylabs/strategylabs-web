@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, type ReactNode } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
 import {
@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   ArrowRight,
   Mic,
-  AlertTriangle,
   Loader2,
   Lock,
   Send,
@@ -39,6 +38,7 @@ import { toast } from "../lib/toast";
 import { hapticSuccess, hapticLight } from "../lib/haptics";
 import { startDictation, type DictationHandle } from "../lib/speech";
 import { shareBacktestCard } from "../lib/shareCard";
+import { Banner, Button, Sheet, StatTile } from "../ui";
 
 // Modular Sub-components Imports
 import { LabTour, shouldShowLabTour } from "./strategylab/LabTour";
@@ -460,30 +460,22 @@ function StrategyLabBody() {
     <div className="space-y-4 pb-12 animate-fade-in">
       {/* ── HEADER ── */}
       <header className={`pt-1 flex items-center justify-between ${stage === "chat" ? "hidden lg:flex" : "flex"}`}>
-        <div className="flex items-center gap-2.5">
-          <div
-            className="relative h-10 w-10 rounded-2xl flex items-center justify-center bg-accent/15 text-accent"
-          >
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-md2 flex items-center justify-center bg-accent-soft text-accent">
             <Sparkles className="h-[18px] w-[18px]" />
-            <span
-              className="absolute inset-0 rounded-2xl animate-ping border border-accent/40"
-            />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight">
-              Strategy Lab
-            </h1>
-            <div className="text-[11px] text-ink-muted">
-              Describe an idea. The Conversational Quant Coach compiles + tests it.
+            <h1 className="text-title-2">Strategy Lab</h1>
+            <div className="text-footnote text-ink-muted">
+              Describe an idea — we compile and test it.
             </div>
           </div>
         </div>
 
         {/* Dynamic usage indicator */}
         {user && (
-          <div className="rounded-xl border border-line bg-bg-card/45 px-3 py-1.5 font-mono text-[9px] font-bold text-ink-subtle flex items-center gap-1.5">
-            <Zap className="h-3 w-3 text-amber-500 animate-pulse" />
-            Runs: {runCount} / {limit === 999999 ? "∞" : limit} Used
+          <div className="rounded-full border border-line bg-surface-1 px-3 py-1.5 text-caption uppercase text-ink-subtle tabular-nums">
+            Runs {runCount}/{limit === 999999 ? "∞" : limit}
           </div>
         )}
       </header>
@@ -495,20 +487,19 @@ function StrategyLabBody() {
 
       {/* ── ERROR TOAST ── */}
       {errorMessage && (
-        <div className="card border-red-500/25 bg-red-500/5 p-4 flex gap-3 items-start animate-fade-in">
-          <AlertTriangle className="h-4.5 w-4.5 text-red-400 flex-none mt-0.5" />
-          <div className="flex-1 space-y-2.5">
-            <p className="text-xs text-red-400 font-semibold leading-relaxed">{errorMessage}</p>
-            {currentSpec && (
-              <button
-                onClick={handleRunBacktest}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-[11px] font-bold text-red-300 hover:bg-red-500/20 active:scale-95 transition"
-              >
+        <Banner
+          tone="error"
+          className="animate-enter"
+          action={
+            currentSpec ? (
+              <Button variant="destructive" size="sm" onClick={handleRunBacktest}>
                 <RefreshCw className="h-3 w-3" /> Retry backtest
-              </button>
-            )}
-          </div>
-        </div>
+              </Button>
+            ) : undefined
+          }
+        >
+          {errorMessage}
+        </Banner>
       )}
 
       {/* ── INPUT PROMPT THESIS ── */}
@@ -889,7 +880,7 @@ function StrategyLabBody() {
                   className="w-full flex items-center justify-between text-[9px] font-black text-accent uppercase tracking-wider font-mono"
                 >
                   <span className="flex items-center gap-1.5">
-                    <HelpCircle className="h-3.5 w-3.5 text-accent animate-pulse" /> 
+                    <HelpCircle className="h-3.5 w-3.5 text-accent" /> 
                     Clarification Required ({doubts.length} items)
                   </span>
                   <span className="text-ink-subtle hover:text-ink">
@@ -993,48 +984,31 @@ function StrategyLabBody() {
           <SafetyChecks />
 
           {userTier === "free" && (
-            <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-3.5 py-2.5 flex items-center gap-2.5">
-              <Zap className="h-3.5 w-3.5 text-amber-500 flex-none" />
-              <p className="text-[11px] font-semibold leading-snug text-amber-400/90">
-                {limit - runCount <= 0
-                  ? "You've used your free backtest — upgrade to run more."
-                  : `${limit - runCount} free backtest${limit - runCount === 1 ? "" : "s"} remaining — make it count.`}
-              </p>
-            </div>
+            <Banner tone="warning">
+              {limit - runCount <= 0
+                ? "You've used your free backtest — upgrade to run more."
+                : `${limit - runCount} free backtest${limit - runCount === 1 ? "" : "s"} remaining — make it count.`}
+            </Banner>
           )}
 
           {/* Mobile view controls */}
           <div className="flex lg:hidden flex-col gap-3 pt-2">
-            <button
-              onClick={handleRunBacktest}
-              className="h-13 w-full rounded-2xl font-black tracking-wide text-[13px] active:scale-[0.98] transition inline-flex items-center justify-center gap-2 shadow-lg shadow-accent/25"
-              style={{ background: "var(--accent)", color: "var(--bg)" }}
-            >
-              <Play className="h-4 w-4 fill-current text-bg" /> RUN WALK-FORWARD BACKTEST
-            </button>
-            <button
-              onClick={() => setStage("chat")}
-              className="h-11 w-full rounded-xl border border-line/70 bg-bg-elev/60 font-bold text-[13px] text-ink-muted hover:text-ink active:scale-[0.98] transition"
-            >
-              Refine Strategy Rules
-            </button>
+            <Button size="lg" onClick={handleRunBacktest}>
+              <Play className="h-4 w-4 fill-current" /> Run walk-forward backtest
+            </Button>
+            <Button variant="secondary" size="md" className="w-full" onClick={() => setStage("chat")}>
+              Refine strategy rules
+            </Button>
           </div>
 
           {/* Desktop view controls */}
           <div className="hidden lg:grid lg:grid-cols-2 gap-3 pt-2">
-            <button
-              onClick={() => setStage("chat")}
-              className="h-11 rounded-xl border border-line/70 bg-bg-elev/60 font-bold text-[13px] text-ink-muted hover:text-ink active:scale-[0.98] transition"
-            >
+            <Button variant="secondary" size="md" onClick={() => setStage("chat")}>
               Refine rules
-            </button>
-            <button
-              onClick={handleRunBacktest}
-              className="h-11 rounded-xl font-bold text-[13px] active:scale-[0.98] transition inline-flex items-center justify-center gap-1.5"
-              style={{ background: "var(--accent)", color: "var(--bg)" }}
-            >
-              <Play className="h-3 w-3 fill-current text-bg" /> Run backtest
-            </button>
+            </Button>
+            <Button size="md" onClick={handleRunBacktest}>
+              <Play className="h-3 w-3 fill-current" /> Run backtest
+            </Button>
           </div>
         </div>
       )}
@@ -1103,10 +1077,10 @@ function StrategyLabBody() {
 
           {/* Metrics grid */}
           <div className="grid grid-cols-2 gap-3">
-            <MetricCard k="Win-rate" v={`${backtestStats.win_rate_pct}%`} sub={`${backtestStats.trade_count} trades`} info="How often trades closed in profit. Even 40% can be profitable if winners outsize losers." />
-            <MetricCard k="Sharpe" v={String(backtestStats.sharpe_ratio)} sub="risk-adj" highlight info="Return earned per unit of risk taken. Above 1 is solid, above 2 is excellent." />
-            <MetricCard k="Max DD" v={`−${backtestStats.max_drawdown_pct}%`} sub="recovered 18d" tone="danger" info="The worst peak-to-bottom drop. This is the pain you'd have to sit through." />
-            <MetricCard k="Profit factor" v={String(backtestStats.profit_factor)} sub="gross/loss" info="Total profits divided by total losses. Above 1.5 means winners clearly outweigh losers." />
+            <StatTile label="Win-rate" value={`${backtestStats.win_rate_pct}%`} sub={`${backtestStats.trade_count} trades`} info="How often trades closed in profit. Even 40% can be profitable if winners outsize losers." />
+            <StatTile label="Sharpe" value={String(backtestStats.sharpe_ratio)} sub="risk-adj" tone="accent" info="Return earned per unit of risk taken. Above 1 is solid, above 2 is excellent." />
+            <StatTile label="Max DD" value={`−${backtestStats.max_drawdown_pct}%`} sub="recovered 18d" tone="negative" info="The worst peak-to-bottom drop. This is the pain you'd have to sit through." />
+            <StatTile label="Profit factor" value={String(backtestStats.profit_factor)} sub="gross/loss" info="Total profits divided by total losses. Above 1.5 means winners clearly outweigh losers." />
           </div>
 
           {/* Sleek Yearly Breakdown Cards */}
@@ -1153,7 +1127,7 @@ function StrategyLabBody() {
             </div>
 
             <h3 className="text-base font-extrabold text-ink leading-none flex items-center gap-2">
-              <Sparkles className="h-4.5 w-4.5 text-amber-500 animate-pulse" />
+              <Sparkles className="h-4.5 w-4.5 text-amber-500" />
               AI Backtest Strategy Audit
             </h3>
 
@@ -1262,74 +1236,56 @@ function StrategyLabBody() {
       )}
 
       {/* ── PREMIUM UPSELL UPGRADE MODAL ── */}
-      {showUpgradeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl border border-line bg-bg-card p-6 shadow-2xl animate-slide-up relative overflow-hidden">
-            <div className="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
-            
-            <button 
-              onClick={() => setShowUpgradeModal(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg border border-line bg-bg-elev text-ink-muted hover:text-ink transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
+      <Sheet open={showUpgradeModal} onClose={() => setShowUpgradeModal(false)}>
+        <div className="text-caption uppercase text-warning">
+          {upsellReason === "limit"
+            ? "You've used your free backtest"
+            : "Premium feature"}
+        </div>
+        <h3 className="text-title-2 text-ink mt-2">
+          {upsellReason === "limit"
+            ? "Keep testing your ideas"
+            : "Unlock the AI audit coach"}
+        </h3>
+        <p className="text-footnote text-ink-muted mt-1.5 leading-relaxed">
+          {upsellReason === "limit"
+            ? "The free plan includes 1 backtest. Upgrade to keep refining and testing strategies."
+            : "Post-backtest diagnostics and rule auto-tuning are part of the paid plans."}
+        </p>
 
-            <div className="flex flex-col items-center text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 mb-4 border border-amber-500/25">
-                {upsellReason === "limit" ? <Zap className="h-6 w-6 animate-pulse" /> : <Lock className="h-6 w-6" />}
-              </div>
-              
-              <h3 className="text-lg font-black tracking-tight text-ink">
-                {upsellReason === "limit" ? "Upgrade Trading Terminals" : "Unlock AI Quant Coach Auditing"}
-              </h3>
-              
-              <p className="text-xs text-ink-muted mt-2 px-4 leading-relaxed font-sans">
-                {upsellReason === "limit" 
-                  ? "Free plan accounts are limited to exactly 1 strategy run. Upgrade to the Trader or Auto terminals to continue backtesting."
-                  : "Post-backtest execution diagnostics and dynamic rules auto-tuning are reserved for premium plans."}
-              </p>
-
-              {/* Comparison card package */}
-              <div className="w-full mt-6 space-y-3.5 text-left bg-bg-elev/40 rounded-2xl p-4 border border-line/45">
-                <div className="flex items-center gap-2.5 text-xs text-ink">
-                  <CheckCircle2 className="h-4 w-4 text-accent flex-none" />
-                  <span>
-                    <strong>Trader Tier ($49/mo)</strong>: 5 dynamic strategies + live Telegram notifications.
-                  </span>
-                </div>
-                <div className="flex items-center gap-2.5 text-xs text-ink">
-                  <CheckCircle2 className="h-4 w-4 text-accent flex-none" />
-                  <span>
-                    <strong>Auto Tier ($199/mo)</strong>: Unlimited strategies + live container execution bots.
-                  </span>
-                </div>
-                <div className="flex items-center gap-2.5 text-xs text-ink">
-                  <CheckCircle2 className="h-4 w-4 text-accent flex-none" />
-                  <span>
-                    <strong>AI Quant Coach Audit</strong>: Comprehensive entry diagnostics and rules re-compiler.
-                  </span>
-                </div>
-              </div>
-
-              {/* Stripe simulated checkout triggers */}
-              <div className="w-full mt-6 space-y-3">
-                <button
-                  onClick={() => toast("Simulated Stripe secure payment flow launched!", "info")}
-                  className="btn-primary w-full py-3.5 shadow-lg shadow-accent/20 bg-amber-500 hover:bg-amber-600 text-bg font-bold font-mono text-[12px] flex items-center justify-center gap-1.5"
-                >
-                  <Zap className="h-4 w-4 fill-current text-bg" /> Unlock Quant Terminal Plan
-                </button>
-                <button
-                  onClick={() => setShowUpgradeModal(false)}
-                  className="btn-ghost w-full py-3.5 border-none text-[11px]"
-                >
-                  Return to Terminal
-                </button>
+        <div className="mt-5 space-y-3 rounded-md2 border border-line bg-surface-2 p-4">
+          {[
+            ["Trader · $49/mo", "5 strategies + live Telegram alerts"],
+            ["Auto · $199/mo", "Unlimited strategies + execution bots"],
+            ["AI Audit Coach", "Entry diagnostics and rule re-compiler"],
+          ].map(([title, sub]) => (
+            <div key={title} className="flex items-start gap-2.5">
+              <CheckCircle2 className="h-4 w-4 text-accent flex-none mt-0.5" />
+              <div>
+                <div className="text-body font-bold text-ink">{title}</div>
+                <div className="text-footnote text-ink-muted">{sub}</div>
               </div>
             </div>
-          </div>
+          ))}
         </div>
-      )}
+
+        <div className="mt-5 space-y-2.5">
+          <Button
+            size="lg"
+            onClick={() => toast("Simulated Stripe secure payment flow launched!", "info")}
+          >
+            <Zap className="h-4 w-4 fill-current" /> Upgrade plan
+          </Button>
+          <Button
+            variant="ghost"
+            size="md"
+            className="w-full"
+            onClick={() => setShowUpgradeModal(false)}
+          >
+            Not now
+          </Button>
+        </div>
+      </Sheet>
 
       {/* ── ALL TRADES DETAILED DIALOG MODAL ── */}
       {showAllTrades && backtestStats && (
@@ -1427,45 +1383,3 @@ function verdictFor(stats: {
   return "Profitable overall, but the returns are thin for the risk involved — worth refining before trusting it.";
 }
 
-function MetricCard({
-  k,
-  v,
-  sub,
-  tone,
-  highlight,
-  info,
-}: {
-  k: string;
-  v: ReactNode;
-  sub: string;
-  tone?: "danger";
-  highlight?: boolean;
-  info?: string;
-}) {
-  const [showInfo, setShowInfo] = useState(false);
-  const color = tone === "danger" ? "#fda4af" : highlight ? "var(--accent)" : "var(--ink)";
-  return (
-    <div
-      className={`rounded-xl border border-line/60 bg-bg-card/45 p-3.5 ${info ? "cursor-pointer" : ""}`}
-      onClick={info ? () => setShowInfo((s) => !s) : undefined}
-    >
-      <div className="text-[9px] uppercase tracking-[0.18em] font-bold text-ink-subtle flex items-center justify-between">
-        <span>{k}</span>
-        {info && <HelpCircle className="h-3 w-3 text-ink-subtle/70" />}
-      </div>
-      {showInfo && info ? (
-        <p className="text-[10px] text-ink-muted leading-snug mt-1.5">{info}</p>
-      ) : (
-        <>
-          <div
-            className="font-mono tabular-nums text-[22px] font-extrabold mt-1"
-            style={{ color }}
-          >
-            {v}
-          </div>
-          <div className="text-[10px] text-ink-subtle mt-0.5">{sub}</div>
-        </>
-      )}
-    </div>
-  );
-}

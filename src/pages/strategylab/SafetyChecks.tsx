@@ -8,22 +8,20 @@ export function SafetyChecks() {
     { k: "Survivorship bias", v: "filtered" },
   ];
   return (
-    <div className="rounded-2xl border border-line bg-bg-card/40 p-4 space-y-3">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] font-bold text-ink-muted">
+    <div className="rounded-lg2 border border-line bg-surface-1 p-4 space-y-2">
+      <div className="flex items-center gap-2 text-caption uppercase text-ink-subtle">
         <CheckCircle2 className="h-3 w-3" /> Walk-forward Robustness
       </div>
-      <div className="space-y-1.5">
+      <div>
         {checks.map((c) => (
           <div
             key={c.k}
-            className="flex items-center justify-between text-[12px] py-1.5 border-b border-line/30 last:border-0"
+            className="flex items-center justify-between text-footnote py-2 border-b border-line/60 last:border-0"
           >
             <span className="text-ink-muted">{c.k}</span>
-            <span className="font-mono text-ink flex items-center gap-1.5">
+            <span className="text-ink font-semibold tabular-nums flex items-center gap-1.5">
               {c.v}
-              <span
-                className="h-1.5 w-1.5 rounded-full bg-accent"
-              />
+              <span className="h-1.5 w-1.5 rounded-full bg-accent" />
             </span>
           </div>
         ))}

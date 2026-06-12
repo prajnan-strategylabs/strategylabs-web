@@ -115,7 +115,7 @@ export function LiveCallRow({
       className="w-full text-left rounded-xl border border-line/60 bg-bg-card/40 hover:bg-bg-card/60 hover:border-line p-3 flex items-center gap-3 active:scale-[0.995] transition cursor-pointer"
     >
       <div className="h-9 w-9 rounded-lg bg-bg-elev border border-line/50 flex items-center justify-center flex-none">
-        <span className="font-mono text-[9px] font-bold text-ink-muted">
+        <span className="text-[9px] font-bold text-ink-muted">
           {call.asset}
         </span>
       </div>
@@ -131,12 +131,12 @@ export function LiveCallRow({
             {call.dir}
           </Pill>
           {call.strategy && (
-            <span className="text-[9px] font-mono font-bold text-ink-subtle">
+            <span className="text-[9px] font-bold text-ink-subtle">
               {call.strategy}
             </span>
           )}
         </div>
-        <div className="text-[10px] text-ink-subtle font-mono mt-0.5">
+        <div className="text-[10px] text-ink-subtle mt-0.5">
           {isOpen
             ? `Entered ${formatWhenAgo(call.entry_time) || call.when_ago} · ${holdLabel} running`
             : `Entered ${formatWhenAgo(call.entry_time) || call.when_ago} · held ${holdLabel}`}
@@ -148,7 +148,7 @@ export function LiveCallRow({
         </Pill>
         {displayUsd != null && (
           <div
-            className="font-mono font-extrabold tabular-nums text-[13px] sl-tick-flash"
+            className="font-extrabold tabular-nums text-[13px] sl-tick-flash"
             style={{ color: pnlColor, lineHeight: 1.1 }}
           >
             {displayUsd >= 0 ? "+" : "-"}${Math.abs(displayUsd).toFixed(2)}
@@ -156,7 +156,7 @@ export function LiveCallRow({
         )}
         {displayRetPct != null && (
           <div
-            className="font-mono font-bold tabular-nums text-[10px]"
+            className="font-bold tabular-nums text-[10px]"
             style={{ color: pnlColor, opacity: 0.85 }}
           >
             {displayRetPct >= 0 ? "+" : ""}

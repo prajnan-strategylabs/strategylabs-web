@@ -5,49 +5,53 @@ interface BacktestRunningProps {
   progress: number;
 }
 
+const STATUS_LINES = [
+  { at: 0, text: "Loading 8 years of market data" },
+  { at: 25, text: "Walking forward through history" },
+  { at: 55, text: "Executing your rules trade by trade" },
+  { at: 80, text: "Computing risk and drawdown" },
+  { at: 95, text: "Finalizing results" },
+];
+
+/** Full-screen takeover — the app's signature moment (DESIGN.md §7.2).
+ *  The equity curve draws live while the backtest runs. */
 export function BacktestRunning({ equity, progress }: BacktestRunningProps) {
+  const status =
+    [...STATUS_LINES].reverse().find((s) => progress >= s.at) ?? STATUS_LINES[0];
+
   return (
-    <div className="rounded-2xl border border-line bg-bg-card/40 p-4 animate-fade-in space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span
-            className="h-2 w-2 rounded-full animate-pulse bg-accent"
-          />
-          <span className="text-[11px] uppercase tracking-[0.15em] font-bold text-ink-muted">
-            Simulating walk-forward data
-          </span>
+    <div className="animate-enter flex flex-col justify-center min-h-[62vh]">
+      <div className="text-center">
+        <div className="text-caption uppercase text-ink-subtle">
+          Walk-forward backtest
         </div>
-        <span
-          className="font-mono tabular-nums text-[12px] font-bold text-accent"
-        >
+        <div className="text-display text-ink tabular-nums mt-2">
           {progress}%
-        </span>
+        </div>
+        <div className="text-footnote text-ink-muted mt-2 h-[17px]">
+          {status.text}…
+        </div>
       </div>
-      <div
-        className="h-1.5 rounded-full overflow-hidden bg-line"
-      >
-        <div
-          className="h-full transition-all duration-150 bg-accent"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-      <div className="rounded-xl bg-bg-elev/50 border border-line/45 px-3 py-2">
+
+      <div className="mt-8 -mx-2">
         <EquityCurve
           data={equity.length ? equity : [100, 100]}
-          height={140}
+          height={160}
           animated={false}
         />
       </div>
-      <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-mono tabular-nums text-ink-subtle">
-        <div>
-          8.2y data <span className="text-ink-subtle">·</span>{" "}
-          <span className="text-accent">scanning</span>
-        </div>
-        <div>
-          47 pairs <span className="text-ink-subtle">·</span>{" "}
-          <span className="text-accent">matched</span>
-        </div>
-        <div>1.2M bars</div>
+
+      <div className="h-1 rounded-full overflow-hidden bg-surface-2 mt-8">
+        <div
+          className="h-full bg-accent transition-all duration-150 ease-out-quart"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      <div className="flex justify-center gap-6 mt-5 text-footnote text-ink-subtle tabular-nums">
+        <span>8.2y data</span>
+        <span>47 pairs</span>
+        <span>1.2M bars</span>
       </div>
     </div>
   );
