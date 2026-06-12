@@ -26,7 +26,6 @@ import {
   purchaseSubscriptionPackage,
   type RCProductOfferings,
 } from "../lib/purchases";
-import { showInterstitial } from "../lib/ads";
 
 // Modular Sub-components Imports
 import { ScannerHeartbeat } from "./signals/ScannerHeartbeat";
@@ -147,9 +146,6 @@ function SignalsBody() {
 
   const handleSelectCall = (c: V22Stats["recent_calls"][number]) => {
     setSelectedCall(c);
-    if (!isPaid) {
-      void showInterstitial();
-    }
   };
 
   // Free tier: one live call stays fully unlocked as a credibility sample
