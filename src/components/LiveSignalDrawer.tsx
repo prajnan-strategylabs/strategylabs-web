@@ -178,14 +178,19 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
         ? ((mark - entry) * (long ? 1 : -1)) / riskDist
         : null;
 
-    // Progress between SL (0) and TP1 (1)
+    // Signed progress from entry: 0 = at entry (center), +1 = at TP1 (right),
+    // −1 = at SL (left). Direction-agnostic — "toward profit" is always right.
     const progress = (() => {
-      if (mark == null || sl == null || tp1 == null) return null;
-      const lo = long ? sl : tp1;
-      const hi = long ? tp1 : sl;
-      const denom = hi - lo;
-      if (denom === 0) return null;
-      return Math.max(0, Math.min(1, (mark - lo) / denom));
+      if (mark == null || entry == null || sl == null || tp1 == null) return null;
+      const gain = (mark - entry) * (long ? 1 : -1);
+      if (gain >= 0) {
+        const denom = Math.abs(tp1 - entry);
+        if (denom === 0) return 0;
+        return Math.min(1, gain / denom);
+      }
+      const denom = Math.abs(entry - sl);
+      if (denom === 0) return 0;
+      return Math.max(-1, gain / denom);
     })();
 
     // Dollar P&L — uses the actual risk_usd from the signal row when
@@ -234,7 +239,6 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
     unrealizedUsd,
   } = derived;
 
-  const dirColor = long ? "var(--accent)" : "#fda4af";
   const pnlColor =
     retPct == null
       ? "var(--ink-muted)"
@@ -457,20 +461,39 @@ export function LiveSignalDrawer({ call: propCall, onClose }: Props) {
               className="relative h-2 rounded-full overflow-hidden"
               style={{ background: "var(--line)" }}
             >
+              {/* Entry anchor — fixed center tick */}
               <div
-                className="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
-                style={{
-                  width: `${progress * 100}%`,
-                  background: `linear-gradient(90deg, ${long ? "#fda4af" : "var(--accent)"} 0%, ${long ? "var(--accent)" : "#fda4af"} 100%)`,
-                }}
+                className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px]"
+                style={{ background: "var(--ink-45)" }}
+              />
+              {/* Fill grows from center: right/accent toward TP, left/red toward SL */}
+              <div
+                className="absolute inset-y-0 transition-all duration-300 ease-out"
+                style={
+                  progress >= 0
+                    ? {
+                        left: "50%",
+                        width: `${progress * 50}%`,
+                        background: "var(--accent)",
+                        borderRadius: "0 9999px 9999px 0",
+                      }
+                    : {
+                        left: `${50 + progress * 50}%`,
+                        width: `${-progress * 50}%`,
+                        background: "var(--negative)",
+                        borderRadius: "9999px 0 0 9999px",
+                      }
+                }
               />
               <div
-                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-3.5 rounded-full border-2 transition-all duration-300"
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-3.5 rounded-full border-2 transition-all duration-300 ease-out"
                 style={{
-                  left: `${progress * 100}%`,
+                  left: `${50 + progress * 50}%`,
                   background: "var(--bg)",
-                  borderColor: dirColor,
-                  boxShadow: isOpen ? `0 0 12px ${dirColor}` : "none",
+                  borderColor: progress >= 0 ? "var(--accent)" : "var(--negative)",
+                  boxShadow: isOpen
+                    ? `0 0 12px ${progress >= 0 ? "var(--accent)" : "var(--negative)"}`
+                    : "none",
                 }}
               />
             </div>
