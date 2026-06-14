@@ -11,6 +11,43 @@ function isValidEmail(raw: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 }
 
+const FIRST_TOUCH_KEY = "sl_first_touch_source";
+
+/**
+ * Resolves the marketing channel for a waitlist signup so per-channel
+ * attribution shows up in the admin CSV's `source` column without any
+ * backend change.
+ *
+ * - Reads `utm_source` / `utm_campaign` (or `ref`) from the landing URL.
+ * - First-touch: the first channel seen this session wins, so attribution
+ *   survives SPA navigation between landing and the form.
+ * - Falls back to the caller's placement tag (e.g. "hero", "footer") when
+ *   there are no UTM params (direct/organic traffic).
+ *
+ * Examples: `?utm_source=twitter&utm_campaign=rsi-thread` → "twitter:rsi-thread".
+ */
+export function resolveWaitlistSource(fallback: string = "hero"): string {
+  try {
+    const stored = sessionStorage.getItem(FIRST_TOUCH_KEY);
+    if (stored) return stored;
+
+    const params = new URLSearchParams(window.location.search);
+    const utmSource = params.get("utm_source") || params.get("ref");
+    const utmCampaign = params.get("utm_campaign");
+    if (utmSource) {
+      const composed = utmCampaign ? `${utmSource}:${utmCampaign}` : utmSource;
+      const clean = composed.toLowerCase().replace(/[^a-z0-9:_-]/g, "").slice(0, 60);
+      if (clean) {
+        sessionStorage.setItem(FIRST_TOUCH_KEY, clean);
+        return clean;
+      }
+    }
+  } catch {
+    // sessionStorage blocked or URL unparseable — use the placement fallback
+  }
+  return fallback;
+}
+
 /**
  * Add an email to the waitlist via the API backend.
  * Falls back to localStorage when API is unreachable (dev convenience).

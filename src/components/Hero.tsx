@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Sparkles, CheckCircle2, AlertCircle, Clock } from "lucide-react";
-import { joinWaitlist } from "../lib/waitlist";
+import { joinWaitlist, resolveWaitlistSource } from "../lib/waitlist";
 import { useAppConfig } from "../lib/useAppConfig";
+
+// Public launch date — drives pre-launch urgency copy. After launch the
+// is_launched config flag flips the CTA to "Launch Strategy Lab" automatically.
+const LAUNCH_LABEL = "July 1";
 
 type Status =
   | { kind: "idle" }
@@ -32,7 +36,7 @@ export function Hero() {
     if (!email || status.kind === "loading") return;
     setStatus({ kind: "loading" });
 
-    const result = await joinWaitlist(email, "hero");
+    const result = await joinWaitlist(email, resolveWaitlistSource("hero"));
     if (result.ok) {
       setStatus({ kind: "success", alreadyMember: result.alreadyMember });
       try {
@@ -54,7 +58,9 @@ export function Hero() {
         {/* Pre-headline tag */}
         <div className="mx-auto mb-6 flex w-fit items-center gap-2 rounded-full border border-accent/30 bg-accent/5 px-3 py-1 text-xs font-medium text-accent animate-fade-in">
           <Sparkles className="h-3 w-3" />
-          Strategy Lab — now in private beta
+          {isLaunched
+            ? "Now live on Google Play & Web"
+            : `Launches ${LAUNCH_LABEL} on Google Play — join the launch list`}
         </div>
 
         {/* Headline */}
@@ -113,17 +119,17 @@ export function Hero() {
                 <div>
                   <div className="font-semibold text-sm">
                     {status.kind === "success" && status.alreadyMember
-                      ? "You're already on the list."
-                      : "You're on the list."}
+                      ? "You're already on the launch list."
+                      : "You're on the launch list."}
                   </div>
                   <div className="text-xs text-ink-muted mt-1 leading-relaxed">
                     {isLaunched
                       ? (status.kind === "success" && status.alreadyMember
-                          ? "We'll email you the moment beta opens. You can also explore the sandbox dashboard now!"
-                          : "Thanks — we'll email you when beta opens. Explore the sandbox dashboard now!")
+                          ? "You can explore the sandbox dashboard right now!"
+                          : "Thanks — explore the sandbox dashboard now!")
                       : (status.kind === "success" && status.alreadyMember
-                          ? "We already have your email. We'll notify you the moment beta launches!"
-                          : "Thanks for joining! We'll email you the moment beta launches.")}
+                          ? `We've already got your email. Your launch-day link + strategy pack land on ${LAUNCH_LABEL}.`
+                          : `Thanks for joining! Your launch-day access link and free strategy pack arrive on ${LAUNCH_LABEL}.`)}
                   </div>
                 </div>
               </div>
@@ -135,6 +141,11 @@ export function Hero() {
             </div>
           ) : (
             <>
+              {!isLaunched && (
+                <p className="mb-3 text-center text-sm text-ink-muted">
+                  Get <span className="font-semibold text-ink">launch-day access</span> + a free starter strategy pack.
+                </p>
+              )}
               <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row">
                 <input
                   type="email"
@@ -148,7 +159,7 @@ export function Hero() {
                              transition-colors focus:border-accent disabled:opacity-60"
                 />
                 <button type="submit" disabled={loading} className="btn-primary">
-                  {loading ? "Joining..." : "Join waitlist"}
+                  {loading ? "Joining..." : isLaunched ? "Join waitlist" : "Get launch access"}
                   {!loading && <ArrowRight className="h-4 w-4" />}
                 </button>
               </form>
