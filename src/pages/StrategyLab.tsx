@@ -15,7 +15,8 @@ import {
   Zap,
   HelpCircle,
   X,
-  Share2
+  Share2,
+  LineChart
 } from "lucide-react";
 import {
   apiCreateStrategy,
@@ -48,6 +49,7 @@ import { SpecCard } from "./strategylab/SpecCard";
 import { SafetyChecks } from "./strategylab/SafetyChecks";
 import { BacktestRunning } from "./strategylab/BacktestRunning";
 import { TradePreview } from "./strategylab/TradePreview";
+import { TradeChart, type Trade } from "./strategylab/TradeChart";
 
 export type Stage = "input" | "compiling" | "chat" | "spec" | "backtesting" | "result";
 
@@ -121,6 +123,7 @@ function StrategyLabBody() {
   const [progress, setProgress] = useState(0);
   const [backtestStats, setBacktestStats] = useState<any | null>(null);
   const [showAllTrades, setShowAllTrades] = useState(false);
+  const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [userStrategies, setUserStrategies] = useState<Strategy[]>([]);
   const [userBacktests, setUserBacktests] = useState<any[]>([]);
 
@@ -1114,9 +1117,10 @@ function StrategyLabBody() {
           )}
 
           {/* Trade logs preview with full view hook */}
-          <TradePreview 
-            trades={backtestStats.trades} 
-            onViewAll={() => setShowAllTrades(true)} 
+          <TradePreview
+            trades={backtestStats.trades}
+            onViewAll={() => setShowAllTrades(true)}
+            onSelectTrade={(t) => setSelectedTrade(t)}
           />
 
 
@@ -1315,15 +1319,16 @@ function StrategyLabBody() {
               <div className="grid grid-cols-5 gap-2 text-center text-[10px] font-bold text-ink-muted border-b border-line/35 pb-2 mb-2">
                 <div className="text-left pl-1">Date</div>
                 <div>Side</div>
-                <div className="col-span-2 text-left">Price coordinates</div>
+                <div className="col-span-2 text-left">Tap to chart</div>
                 <div className="text-right pr-1">P&L (R)</div>
               </div>
-              
+
               <div className="space-y-2">
                 {backtestStats.trades.map((t: any, i: number) => (
-                  <div 
-                    key={i} 
-                    className="grid grid-cols-5 gap-2 text-[11px] font-medium text-ink-muted py-1.5 items-center border-b border-line/15 last:border-0"
+                  <button
+                    key={i}
+                    onClick={() => setSelectedTrade(t)}
+                    className="w-full grid grid-cols-5 gap-2 text-[11px] font-medium text-ink-muted py-1.5 items-center border-b border-line/15 last:border-0 text-left rounded-lg hover:bg-bg-elev/40 active:bg-bg-elev/60 transition-colors"
                   >
                     <div className="text-left font-mono text-ink-subtle pl-1">{t.date}</div>
                     <div className="text-center">
@@ -1331,15 +1336,16 @@ function StrategyLabBody() {
                         {t.side}
                       </span>
                     </div>
-                    <div className="col-span-2 text-left font-mono text-ink-subtle text-[10px] tabular-nums">
+                    <div className="col-span-2 text-left font-mono text-ink-subtle text-[10px] tabular-nums flex items-center gap-1.5">
+                      <LineChart className="h-3 w-3 text-ink-subtle/70 flex-none" />
                       ${t.entry.toLocaleString()} → ${t.exit.toLocaleString()}
                     </div>
-                    <div 
+                    <div
                       className={`text-right font-mono font-bold pr-1 ${t.pos ? "text-accent" : "text-rose-400"}`}
                     >
                       {t.r} ({t.pnl_pct >= 0 ? "+" : ""}{t.pnl_pct}%)
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -1357,6 +1363,13 @@ function StrategyLabBody() {
           </div>
         </div>
       )}
+
+      {/* ── SINGLE-TRADE CHART SHEET ── */}
+      <Sheet open={!!selectedTrade} onClose={() => setSelectedTrade(null)}>
+        {selectedTrade && (
+          <TradeChart trade={selectedTrade} asset={currentSpec?.asset} />
+        )}
+      </Sheet>
     </div>
   );
 }
