@@ -43,7 +43,7 @@ import { hapticSuccess, hapticLight } from "../lib/haptics";
 import { startDictation, type DictationHandle } from "../lib/speech";
 import { shareBacktestCard } from "../lib/shareCard";
 import { presentPaywall, determineActiveTier } from "../lib/purchases";
-import { Banner, Button, Sheet, StatTile } from "../ui";
+import { Banner, Button, Sheet, StatTile, Skeleton } from "../ui";
 
 // Modular Sub-components Imports
 import { LabTour, shouldShowLabTour } from "./strategylab/LabTour";
@@ -132,6 +132,8 @@ function StrategyLabBody() {
   const [loadingTradeChart, setLoadingTradeChart] = useState(false);
   const [userStrategies, setUserStrategies] = useState<Strategy[]>([]);
   const [userBacktests, setUserBacktests] = useState<any[]>([]);
+  const [loadingStrategies, setLoadingStrategies] = useState(true);
+  const hasLoadedStrategiesRef = useRef(false);
 
   
   // Auditing / Upsell states
@@ -165,13 +167,16 @@ function StrategyLabBody() {
 
   // Load user's backtest count and saved strategies on mount and stage transitions
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setLoadingStrategies(false);
+      return;
+    }
     async function loadStats() {
       try {
         const sessionRes = await supabase!.auth.getSession();
         const token = sessionRes.data.session?.access_token;
         if (!token) return;
-        
+
         const runs = await apiListBacktests(token);
         // Runs that failed (bad rule, no trades, engine error) never delivered
         // a real backtest, so they shouldn't count against the free-tier quota.
@@ -182,6 +187,14 @@ function StrategyLabBody() {
         setUserStrategies(strats);
       } catch (e) {
         // Silently fail
+      } finally {
+        // Only show the skeleton on the very first load — later refetches
+        // (triggered by stage changes) refresh silently in the background,
+        // like a native app, instead of re-flashing a loader every time.
+        if (!hasLoadedStrategiesRef.current) {
+          hasLoadedStrategiesRef.current = true;
+          setLoadingStrategies(false);
+        }
       }
     }
     loadStats();
@@ -656,9 +669,34 @@ function StrategyLabBody() {
             )}
           </div>
 
-          {/* Saved Strategies */}
-          {userStrategies.length > 0 && (
-            <div className="space-y-3">
+          {/* Saved Strategies — skeleton on first load so the section never
+              just pops in empty-handed once data arrives */}
+          {loadingStrategies && (
+            <div className="space-y-3 animate-fade-in">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-ink-subtle font-bold px-1 flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3 text-accent" /> Saved Strategies
+              </div>
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+                {[0, 1].map((i) => (
+                  <div
+                    key={i}
+                    className="rounded-xl border border-line/50 bg-bg-card/30 p-3.5 flex flex-col gap-1.5"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <Skeleton className="h-3 w-24 rounded" />
+                      <Skeleton className="h-3.5 w-12 rounded" />
+                    </div>
+                    <Skeleton className="h-2.5 w-full rounded" />
+                    <Skeleton className="h-2.5 w-2/3 rounded" />
+                    <Skeleton className="h-2 w-20 rounded mt-0.5" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!loadingStrategies && userStrategies.length > 0 && (
+            <div className="space-y-3 animate-fade-in">
               <div className="text-[10px] uppercase tracking-[0.18em] text-ink-subtle font-bold px-1 flex items-center gap-1.5">
                 <Sparkles className="h-3 w-3 text-accent" /> Saved Strategies
               </div>

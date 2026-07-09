@@ -45,7 +45,7 @@ export function TradePreview({ trades, onViewAll, onSelectTrade }: TradePreviewP
             className="w-full text-left px-4 py-2.5 flex items-center gap-3 text-[12px] border-b border-line/30 last:border-0 enabled:hover:bg-bg-elev/40 enabled:active:bg-bg-elev/60 transition-colors"
           >
             <div className="text-ink-subtle font-mono w-20 text-[11px]">{t.date}</div>
-            <Pill tone={t.pos ? "accent" : "danger"}>{t.side}</Pill>
+            <Pill tone={t.side === "LONG" ? "accent" : "danger"}>{t.side}</Pill>
             <div className="flex-1 font-mono text-ink-muted text-[11px] tabular-nums">
               ${t.entry.toLocaleString()} → ${t.exit.toLocaleString()}
             </div>
