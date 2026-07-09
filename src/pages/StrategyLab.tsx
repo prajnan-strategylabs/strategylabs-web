@@ -42,6 +42,7 @@ import { toast } from "../lib/toast";
 import { hapticSuccess, hapticLight } from "../lib/haptics";
 import { startDictation, type DictationHandle } from "../lib/speech";
 import { shareBacktestCard } from "../lib/shareCard";
+import { presentPaywall, determineActiveTier } from "../lib/purchases";
 import { Banner, Button, Sheet, StatTile } from "../ui";
 
 // Modular Sub-components Imports
@@ -99,7 +100,7 @@ export function StrategyLab() {
 }
 
 function StrategyLabBody() {
-  const { user } = useAuth();
+  const { user, updateSandboxTier } = useAuth();
   
   // Workflow Stages
   const [stage, setStage] = useState<Stage>("input");
@@ -139,6 +140,7 @@ function StrategyLabBody() {
   const [loadingChat, setLoadingChat] = useState(false);
   const [runCount, setRunCount] = useState(0);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [purchaseBusy, setPurchaseBusy] = useState(false);
   const [upsellReason, setUpsellReason] = useState<"limit" | "audit" | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSpecSheetOpen, setIsSpecSheetOpen] = useState(false);
@@ -460,6 +462,27 @@ function StrategyLabBody() {
       setErrorMessage(err.message || "Auditing failed.");
     } finally {
       setLoadingAudit(false);
+    }
+  }
+
+  // Launch the real RevenueCat/Play Store paywall from the upsell drawer.
+  // This lets the user pick Trader vs Auto + billing period inside RevenueCat's
+  // own UI and completes an actual Play Store purchase — no fake/simulated flow.
+  async function handleUpgradeClick() {
+    if (purchaseBusy) return;
+    setPurchaseBusy(true);
+    try {
+      const purchased = await presentPaywall();
+      if (purchased) {
+        const newTier = await determineActiveTier();
+        updateSandboxTier(newTier);
+        setShowUpgradeModal(false);
+        toast("You're upgraded! Enjoy the full audit.", "success");
+      }
+    } catch (err: any) {
+      toast(err?.message || "Purchase failed. Please try again.", "error");
+    } finally {
+      setPurchaseBusy(false);
     }
   }
 
@@ -1368,15 +1391,22 @@ function StrategyLabBody() {
         <div className="mt-5 space-y-2.5">
           <Button
             size="lg"
-            onClick={() => toast("Simulated Stripe secure payment flow launched!", "info")}
+            onClick={handleUpgradeClick}
+            disabled={purchaseBusy}
           >
-            <Zap className="h-4 w-4 fill-current" /> Upgrade plan
+            {purchaseBusy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4 fill-current" />
+            )}
+            {purchaseBusy ? "Opening Play Store…" : "Upgrade plan"}
           </Button>
           <Button
             variant="ghost"
             size="md"
             className="w-full"
             onClick={() => setShowUpgradeModal(false)}
+            disabled={purchaseBusy}
           >
             Not now
           </Button>
@@ -1384,12 +1414,12 @@ function StrategyLabBody() {
       </Sheet>
 
       {/* ── ALL TRADES DETAILED DIALOG MODAL ── */}
-      {showAllTrades && backtestStats && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in select-text">
-          <div className="w-full max-w-xl rounded-3xl border border-line bg-bg-card p-6 shadow-2xl animate-slide-up relative flex flex-col max-h-[85vh] overflow-hidden">
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-b-line/40">
+      {/* ── ALL TRADES DRAWER ── */}
+      <Sheet open={showAllTrades} onClose={() => setShowAllTrades(false)}>
+        {backtestStats && (
+          <div className="flex flex-col select-text" style={{ maxHeight: "70vh" }}>
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-b-line/40 flex-none">
               <div>
                 <h3 className="text-base font-extrabold tracking-tight text-ink">
                   Detailed Backtest Trade Logs
@@ -1398,7 +1428,7 @@ function StrategyLabBody() {
                   Showing all {backtestStats.trades.length} strategy executions
                 </p>
               </div>
-              <button 
+              <button
                 onClick={() => setShowAllTrades(false)}
                 className="p-1.5 rounded-lg border border-line bg-bg-elev text-ink-muted hover:text-ink transition-colors"
               >
@@ -1406,8 +1436,8 @@ function StrategyLabBody() {
               </button>
             </div>
 
-            {/* Modal Body (Scrollable Table) */}
-            <div className="flex-1 overflow-y-auto py-4 scrollbar-thin">
+            {/* Body — the only scrollable region; the drawer/page behind it stay locked */}
+            <div className="flex-1 overflow-y-auto py-4 scrollbar-thin min-h-0">
               <div className="grid grid-cols-5 gap-2 text-center text-[10px] font-bold text-ink-muted border-b border-line/35 pb-2 mb-2">
                 <div className="text-left pl-1">Date</div>
                 <div>Side</div>
@@ -1419,7 +1449,10 @@ function StrategyLabBody() {
                 {backtestStats.trades.map((t: any, i: number) => (
                   <button
                     key={i}
-                    onClick={() => setSelectedTrade(t)}
+                    onClick={() => {
+                      setShowAllTrades(false);
+                      setSelectedTrade(t);
+                    }}
                     className="w-full grid grid-cols-5 gap-2 text-[11px] font-medium text-ink-muted py-1.5 items-center border-b border-line/15 last:border-0 text-left rounded-lg hover:bg-bg-elev/40 active:bg-bg-elev/60 transition-colors"
                   >
                     <div className="text-left font-mono text-ink-subtle pl-1">{t.date}</div>
@@ -1441,20 +1474,9 @@ function StrategyLabBody() {
                 ))}
               </div>
             </div>
-
-            {/* Modal Footer */}
-            <div className="pt-4 border-t border-line/40 flex justify-end">
-              <button
-                onClick={() => setShowAllTrades(false)}
-                className="h-9 px-5 rounded-lg border border-line bg-bg-elev font-bold text-[11px] text-ink hover:text-accent transition active:scale-95"
-              >
-                Close Logs
-              </button>
-            </div>
-
           </div>
-        </div>
-      )}
+        )}
+      </Sheet>
 
       {/* ── SINGLE-TRADE CHART SHEET ── */}
       <Sheet open={!!selectedTrade} onClose={() => setSelectedTrade(null)}>
