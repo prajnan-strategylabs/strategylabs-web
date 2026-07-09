@@ -130,6 +130,15 @@ export async function apiGetConfig(): Promise<{ is_launched: boolean; waitlist_f
   }
 }
 
+// ── Auth ─────────────────────────────────────────────────────────────────────
+
+export async function apiRequestOtp(email: string, redirectTo: string): Promise<{ ok: boolean }> {
+  return post<{ ok: boolean }>("/api/v1/auth/otp", {
+    email,
+    redirect_to: redirectTo,
+  });
+}
+
 // ── Strategies ────────────────────────────────────────────────────────────────
 
 export async function apiListStrategies(token: string) {
@@ -160,6 +169,21 @@ export async function apiQueueBacktest(
 
 export async function apiGetBacktest(token: string, runId: string) {
   return get<unknown>(`/api/v1/backtests/${runId}`, token);
+}
+
+export interface TradeChartData {
+  asset: string;
+  timeframe: string;
+  /** [ts_ms, open, high, low, close] */
+  candles: Array<[number, number, number, number, number]>;
+  trade: Record<string, unknown>;
+  entry_ts: number;
+  exit_ts: number;
+  approx_entry: boolean;
+}
+
+export async function apiGetTradeChart(token: string, runId: string, tradeIndex: number) {
+  return get<TradeChartData>(`/api/v1/backtests/${runId}/trades/${tradeIndex}/chart`, token);
 }
 
 // ── Signals ───────────────────────────────────────────────────────────────────

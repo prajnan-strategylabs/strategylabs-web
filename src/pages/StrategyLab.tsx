@@ -16,18 +16,21 @@ import {
   HelpCircle,
   X,
   Share2,
-  LineChart
+  LineChart,
+  ChevronRight
 } from "lucide-react";
 import {
   apiCreateStrategy,
   apiQueueBacktest,
   apiGetBacktest,
+  apiGetTradeChart,
   apiListBacktests,
   apiChatStrategySpec,
   apiAnalyzeBacktest,
   apiListStrategiesTyped,
   type ChatMessage,
-  type Strategy
+  type Strategy,
+  type TradeChartData
 } from "../lib/api";
 import {
   EquityCurve,
@@ -124,6 +127,8 @@ function StrategyLabBody() {
   const [backtestStats, setBacktestStats] = useState<any | null>(null);
   const [showAllTrades, setShowAllTrades] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [tradeChartData, setTradeChartData] = useState<TradeChartData | null>(null);
+  const [loadingTradeChart, setLoadingTradeChart] = useState(false);
   const [userStrategies, setUserStrategies] = useState<Strategy[]>([]);
   const [userBacktests, setUserBacktests] = useState<any[]>([]);
 
@@ -177,6 +182,37 @@ function StrategyLabBody() {
     }
     loadStats();
   }, [user, stage]);
+
+  // Fetch real OHLC context for the tapped trade so the chart shows where it bought/sold
+  useEffect(() => {
+    if (!selectedTrade) {
+      setTradeChartData(null);
+      setLoadingTradeChart(false);
+      return;
+    }
+    const tradeIndex = backtestStats?.trades?.indexOf(selectedTrade) ?? -1;
+    if (!activeRunId || tradeIndex < 0) return;
+
+    let cancelled = false;
+    async function loadTradeChart() {
+      setLoadingTradeChart(true);
+      try {
+        const sessionRes = await supabase!.auth.getSession();
+        const token = sessionRes.data.session?.access_token;
+        if (!token || cancelled) return;
+        const data = await apiGetTradeChart(token, activeRunId!, tradeIndex);
+        if (!cancelled) setTradeChartData(data);
+      } catch {
+        // Fall back to the simple entry→exit view — never block the sheet on this
+      } finally {
+        if (!cancelled) setLoadingTradeChart(false);
+      }
+    }
+    loadTradeChart();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTrade, activeRunId, backtestStats]);
 
   // Conversational spec compiler trigger
   async function compileStrategy(latestPrompt: string, thread: ChatMessage[]) {
@@ -1082,9 +1118,61 @@ function StrategyLabBody() {
           <div className="grid grid-cols-2 gap-3">
             <StatTile label="Win-rate" value={`${backtestStats.win_rate_pct}%`} sub={`${backtestStats.trade_count} trades`} info="How often trades closed in profit. Even 40% can be profitable if winners outsize losers." />
             <StatTile label="Sharpe" value={String(backtestStats.sharpe_ratio)} sub="risk-adj" tone="accent" info="Return earned per unit of risk taken. Above 1 is solid, above 2 is excellent." />
-            <StatTile label="Max DD" value={`−${backtestStats.max_drawdown_pct}%`} sub="recovered 18d" tone="negative" info="The worst peak-to-bottom drop. This is the pain you'd have to sit through." />
+            <StatTile label="Max DD" value={`−${backtestStats.max_drawdown_pct}%`} sub={ddRecoverySub(backtestStats.equity_curve)} tone="negative" info="The worst peak-to-bottom drop. This is the pain you'd have to sit through." />
             <StatTile label="Profit factor" value={String(backtestStats.profit_factor)} sub="gross/loss" info="Total profits divided by total losses. Above 1.5 means winners clearly outweigh losers." />
           </div>
+
+          {/* Robustness checks (computed by the engine, only shown when present) */}
+          {(backtestStats.monte_carlo?.median_max_dd_pct != null || backtestStats.cost_stress) && (
+            <div className="rounded-2xl border border-line bg-bg-card/45 p-4 space-y-2">
+              <div className="text-[10px] uppercase tracking-[0.15em] font-extrabold text-ink-subtle flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-accent" /> Robustness checks
+              </div>
+              {backtestStats.monte_carlo?.median_max_dd_pct != null && (
+                <div className="flex items-center justify-between text-[11px] text-ink-muted">
+                  <span>Monte Carlo · {backtestStats.monte_carlo.runs} trade-order reshuffles</span>
+                  <span className="font-mono font-bold text-ink">
+                    DD median −{backtestStats.monte_carlo.median_max_dd_pct}% · p95 −{backtestStats.monte_carlo.p95_max_dd_pct}%
+                  </span>
+                </div>
+              )}
+              {backtestStats.cost_stress && (
+                <div className="flex items-center justify-between text-[11px] text-ink-muted">
+                  <span>Cost stress · fees + slippage doubled</span>
+                  <span className={`font-mono font-bold ${backtestStats.cost_stress.stressed_return_pct >= 0 ? "text-accent" : "text-rose-400"}`}>
+                    {backtestStats.cost_stress.stressed_return_pct >= 0 ? "+" : ""}{backtestStats.cost_stress.stressed_return_pct}% return
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* What was tested — exact compiled parameters, for auditability */}
+          {backtestStats.params_used && (
+            <details className="rounded-2xl border border-line bg-bg-card/30 px-4 py-3 group">
+              <summary className="text-[10px] uppercase tracking-[0.15em] font-extrabold text-ink-subtle cursor-pointer list-none flex items-center justify-between">
+                <span>What was tested (exact rules)</span>
+                <ChevronRight className="h-3 w-3 transition-transform group-open:rotate-90" />
+              </summary>
+              <div className="mt-3 space-y-1.5 select-text">
+                {[
+                  ["Entry", backtestStats.params_used.entry],
+                  ["Direction", backtestStats.params_used.direction],
+                  ["Stop loss", backtestStats.params_used.stop_loss],
+                  ["Target", backtestStats.params_used.target],
+                  ["Sizing", backtestStats.params_used.sizing],
+                  ["Costs", backtestStats.params_used.costs],
+                  ["Fills", backtestStats.params_used.fills],
+                  ["Data", `${backtestStats.params_used.asset} · ${String(backtestStats.params_used.timeframe).toUpperCase()} · ${backtestStats.params_used.data_start} → ${backtestStats.params_used.data_end} (${backtestStats.params_used.bars} bars)`],
+                ].filter(([, v]) => v).map(([k, v]) => (
+                  <div key={k as string} className="flex gap-2 text-[10.5px] leading-relaxed">
+                    <span className="w-16 flex-none font-bold text-ink-subtle">{k}</span>
+                    <span className="font-mono text-ink-muted">{v}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
 
           {/* Sleek Yearly Breakdown Cards */}
           {backtestStats.yearly_breakdown && (
@@ -1367,7 +1455,12 @@ function StrategyLabBody() {
       {/* ── SINGLE-TRADE CHART SHEET ── */}
       <Sheet open={!!selectedTrade} onClose={() => setSelectedTrade(null)}>
         {selectedTrade && (
-          <TradeChart trade={selectedTrade} asset={currentSpec?.asset} />
+          <TradeChart
+            trade={selectedTrade}
+            asset={currentSpec?.asset}
+            chartData={tradeChartData}
+            loadingChart={loadingTradeChart}
+          />
         )}
       </Sheet>
     </div>
@@ -1375,6 +1468,33 @@ function StrategyLabBody() {
 }
 
 /* ───────── Results Metric Card ───────── */
+
+/** Real recovery time of the worst drawdown, computed from the equity curve. */
+function ddRecoverySub(curve: Array<[number, number]> | undefined): string {
+  if (!curve || curve.length < 2) return "peak to trough";
+  let peak = curve[0][1];
+  let mdd = 0;
+  let troughTs = 0;
+  let troughPeak = curve[0][1];
+  for (const [ts, eq] of curve) {
+    if (eq > peak) peak = eq;
+    const dd = (eq - peak) / peak;
+    if (dd < mdd) {
+      mdd = dd;
+      troughTs = ts;
+      troughPeak = peak;
+    }
+  }
+  if (mdd === 0) return "no drawdown";
+  for (const [ts, eq] of curve) {
+    if (ts > troughTs && eq >= troughPeak) {
+      const days = Math.max(1, Math.round((ts - troughTs) / 86_400_000));
+      return `recovered in ${days}d`;
+    }
+  }
+  return "not yet recovered";
+}
+
 function verdictFor(stats: {
   sharpe_ratio: number;
   max_drawdown_pct: number;

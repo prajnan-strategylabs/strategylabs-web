@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase, supabaseReady } from "../lib/supabase";
 import { clearWaitlistCache } from "../lib/useWaitlistStatus";
 import { configurePurchases, determineActiveTier, addSubscriptionListener, tierFromCustomerInfo } from "../lib/purchases";
+import { apiRequestOtp } from "../lib/api";
 
 export type UserTier = "free" | "trader" | "auto";
 
@@ -282,18 +283,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (supabase) {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email.trim().toLowerCase(),
-        options: {
-          // Email template appends "/login?token_hash=…&type=…" itself, so
-          // .RedirectTo must be ORIGIN ONLY (no /login suffix).
-          // First-time emails get the "Confirm signup" template (type=signup);
-          // subsequent emails get the "Magic link or OTP" template (type=magiclink).
-          // Both customized to use the same token_hash flow.
-          emailRedirectTo: window.location.origin,
-        },
-      });
-      return { error: error ? new Error(error.message) : null };
+      try {
+        // The backend owns the pre-launch allowlist. Do not call Supabase
+        // signInWithOtp directly here, or waitlist users could receive codes
+        // before IS_LAUNCHED flips true.
+        await apiRequestOtp(email.trim().toLowerCase(), window.location.origin);
+        return { error: null };
+      } catch (err) {
+        return { error: err instanceof Error ? err : new Error("Could not send sign-in code.") };
+      }
     }
 
     return { error: new Error("Auth system not ready.") };
