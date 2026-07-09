@@ -47,8 +47,9 @@ dependencies {
     // Import the Firebase BoM (Bill of Materials)
     implementation platform('com.google.firebase:firebase-bom:34.14.0')
 
-    // Declare dependencies for Firebase products
-    implementation 'com.google.firebase:firebase-analytics'
+    // Only push notifications are used — firebase-analytics was unused dead weight
+    // and its play-services-measurement-api dep is what pulled in the AdServices
+    // AD_ID/attribution permissions that broke the Play Console declaration.
     implementation 'com.google.firebase:firebase-messaging'
 }
 
