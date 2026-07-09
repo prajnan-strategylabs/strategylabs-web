@@ -14,7 +14,10 @@ type TradeRow = {
 interface TradePreviewProps {
   trades: Array<TradeRow>;
   onViewAll?: () => void;
-  onSelectTrade?: (trade: TradeRow) => void;
+  /** index is this trade's position in the FULL trades array (not the
+   *  5-item preview slice) — the preview always starts from index 0, so
+   *  the local map index already matches the full array's index. */
+  onSelectTrade?: (trade: TradeRow, index: number) => void;
 }
 
 export function TradePreview({ trades, onViewAll, onSelectTrade }: TradePreviewProps) {
@@ -40,7 +43,7 @@ export function TradePreview({ trades, onViewAll, onSelectTrade }: TradePreviewP
         {previewTrades.map((t, i) => (
           <button
             key={i}
-            onClick={() => onSelectTrade?.(t)}
+            onClick={() => onSelectTrade?.(t, i)}
             disabled={!onSelectTrade}
             className="w-full text-left px-4 py-2.5 flex items-center gap-3 text-[12px] border-b border-line/30 last:border-0 enabled:hover:bg-bg-elev/40 enabled:active:bg-bg-elev/60 transition-colors"
           >

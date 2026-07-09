@@ -128,6 +128,10 @@ function StrategyLabBody() {
   const [backtestStats, setBacktestStats] = useState<any | null>(null);
   const [showAllTrades, setShowAllTrades] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  // Captured explicitly at selection time instead of re-derived via
+  // trades.indexOf(selectedTrade) — object-reference lookups are fragile
+  // and, when they miss, silently leave a stale/mismatched chart on screen.
+  const [selectedTradeIndex, setSelectedTradeIndex] = useState<number | null>(null);
   const [tradeChartData, setTradeChartData] = useState<TradeChartData | null>(null);
   const [loadingTradeChart, setLoadingTradeChart] = useState(false);
   const [userStrategies, setUserStrategies] = useState<Strategy[]>([]);
@@ -202,13 +206,13 @@ function StrategyLabBody() {
 
   // Fetch real OHLC context for the tapped trade so the chart shows where it bought/sold
   useEffect(() => {
-    if (!selectedTrade) {
-      setTradeChartData(null);
+    // Clear immediately on every trade change — never let a stale chart from
+    // a PREVIOUS trade linger under the newly-selected trade's info panel.
+    setTradeChartData(null);
+    if (!selectedTrade || selectedTradeIndex == null || !activeRunId) {
       setLoadingTradeChart(false);
       return;
     }
-    const tradeIndex = backtestStats?.trades?.indexOf(selectedTrade) ?? -1;
-    if (!activeRunId || tradeIndex < 0) return;
 
     let cancelled = false;
     async function loadTradeChart() {
@@ -217,7 +221,7 @@ function StrategyLabBody() {
         const sessionRes = await supabase!.auth.getSession();
         const token = sessionRes.data.session?.access_token;
         if (!token || cancelled) return;
-        const data = await apiGetTradeChart(token, activeRunId!, tradeIndex);
+        const data = await apiGetTradeChart(token, activeRunId!, selectedTradeIndex!);
         if (!cancelled) setTradeChartData(data);
       } catch {
         // Fall back to the simple entry→exit view — never block the sheet on this
@@ -229,7 +233,7 @@ function StrategyLabBody() {
     return () => {
       cancelled = true;
     };
-  }, [selectedTrade, activeRunId, backtestStats]);
+  }, [selectedTrade, selectedTradeIndex, activeRunId]);
 
   // Conversational spec compiler trigger
   async function compileStrategy(latestPrompt: string, thread: ChatMessage[]) {
@@ -526,6 +530,8 @@ function StrategyLabBody() {
     setProgress(0);
     setBacktestStats(null);
     setShowAllTrades(false);
+    setSelectedTrade(null);
+    setSelectedTradeIndex(null);
     setAuditReport(null);
     setErrorMessage(null);
   }
@@ -1273,7 +1279,10 @@ function StrategyLabBody() {
           <TradePreview
             trades={backtestStats.trades}
             onViewAll={() => setShowAllTrades(true)}
-            onSelectTrade={(t) => setSelectedTrade(t)}
+            onSelectTrade={(t, i) => {
+              setSelectedTrade(t);
+              setSelectedTradeIndex(i);
+            }}
           />
 
 
@@ -1490,6 +1499,7 @@ function StrategyLabBody() {
                     onClick={() => {
                       setShowAllTrades(false);
                       setSelectedTrade(t);
+                      setSelectedTradeIndex(i);
                     }}
                     className="w-full grid grid-cols-5 gap-2 text-[11px] font-medium text-ink-muted py-1.5 items-center border-b border-line/15 last:border-0 text-left rounded-lg hover:bg-bg-elev/40 active:bg-bg-elev/60 transition-colors"
                   >
@@ -1517,7 +1527,13 @@ function StrategyLabBody() {
       </Sheet>
 
       {/* ── SINGLE-TRADE CHART SHEET ── */}
-      <Sheet open={!!selectedTrade} onClose={() => setSelectedTrade(null)}>
+      <Sheet
+        open={!!selectedTrade}
+        onClose={() => {
+          setSelectedTrade(null);
+          setSelectedTradeIndex(null);
+        }}
+      >
         {selectedTrade && (
           <TradeChart
             trade={selectedTrade}
