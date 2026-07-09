@@ -16,7 +16,12 @@ const config: CapacitorConfig = {
       enabled: true
     },
     Keyboard: {
-      resize: "body",
+      // "native" delegates to Android's own keyboard-overlap calculation
+      // (via windowSoftInputMode=adjustResize below) so only inputs the
+      // keyboard would actually cover get scrolled up. "body" shrinks the
+      // whole WebView, reflowing every full-height layout and dragging
+      // unrelated inputs upward with it.
+      resize: "native",
       resizeOnFullScreen: true
     },
     StatusBar: {

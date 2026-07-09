@@ -11,7 +11,9 @@ export function initNative() {
     StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
   }
 
-  Keyboard.setResizeMode({ mode: KeyboardResize.Body }).catch(() => {});
+  // Matches capacitor.config.ts — "native" only moves content the keyboard
+  // would actually cover, instead of resizing the whole page (see there for why).
+  Keyboard.setResizeMode({ mode: KeyboardResize.Native }).catch(() => {});
   // Tag the DOM while the keyboard is open so fixed UI (bottom nav) can hide via CSS
   Keyboard.addListener("keyboardWillShow", () => {
     document.body.classList.add("keyboard-open");
