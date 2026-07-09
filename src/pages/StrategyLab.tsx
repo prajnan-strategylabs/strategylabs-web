@@ -171,7 +171,9 @@ function StrategyLabBody() {
         if (!token) return;
         
         const runs = await apiListBacktests(token);
-        setRunCount(runs.length);
+        // Runs that failed (bad rule, no trades, engine error) never delivered
+        // a real backtest, so they shouldn't count against the free-tier quota.
+        setRunCount(runs.filter((r: any) => r.status !== "failed").length);
         setUserBacktests(runs);
 
         const strats = await apiListStrategiesTyped(token);
@@ -346,9 +348,11 @@ function StrategyLabBody() {
       const token = sessionRes.data.session?.access_token;
       if (!token) throw new Error("No active session");
 
-      // Verify limits locally beforehand to give instant drawer popup
+      // Verify limits locally beforehand to give instant drawer popup.
+      // Failed runs (bad rule, no trades, engine error) don't count against the quota.
       const runs = await apiListBacktests(token);
-      if (runs.length >= limit) {
+      const usedRuns = runs.filter((r: any) => r.status !== "failed").length;
+      if (usedRuns >= limit) {
         setUpsellReason("limit");
         setShowUpgradeModal(true);
         setStage("spec");
