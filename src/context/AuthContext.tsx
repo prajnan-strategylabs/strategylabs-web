@@ -3,6 +3,7 @@ import { supabase, supabaseReady } from "../lib/supabase";
 import { clearWaitlistCache } from "../lib/useWaitlistStatus";
 import { configurePurchases, determineActiveTier, addSubscriptionListener, tierFromCustomerInfo } from "../lib/purchases";
 import { apiRequestOtp } from "../lib/api";
+import { initPushNotifications, reRegisterKnownToken } from "../lib/push";
 
 export type UserTier = "free" | "trader" | "auto";
 
@@ -78,10 +79,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [tierResolved, setTierResolved] = useState(false);
   const [isSandbox, setIsSandbox] = useState(false);
 
+  // --- Native push notifications (V22 signal open/close alerts) ---
+  useEffect(() => {
+    if (!user || isSandbox) return;
+    // Request permission + register with the OS on first login on this
+    // device; re-send any already-known token in case the OS 'registration'
+    // event fired before the user was signed in.
+    void initPushNotifications();
+    void reRegisterKnownToken();
+  }, [user?.id, isSandbox]);
+
   // --- RevenueCat Capacitor Integration ---
   useEffect(() => {
     if (!user || isSandbox) return;
-    
+
     // 1. Initialize RevenueCat Purchases SDK
     void configurePurchases(user.id);
     

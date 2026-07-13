@@ -15,6 +15,7 @@ import {
 import { EquityCurve, LiveDot, Pill } from "../components/MobileUI";
 import DigitRoller from "../components/DigitRoller";
 import { ConnectTelegram } from "../components/ConnectTelegram";
+import { ConnectPushNotifications } from "../components/ConnectPushNotifications";
 import { LiveSignalDrawer } from "../components/LiveSignalDrawer";
 import { HistoryDrawer } from "../components/HistoryDrawer";
 import { useBinanceTradeStreams } from "../lib/useBinanceStreams";
@@ -508,6 +509,8 @@ function SignalsBody() {
 
               <ConnectTelegram />
 
+              <ConnectPushNotifications />
+
               <p className="text-[10px] text-ink-subtle leading-relaxed pt-1">
                 Signal alerts are for educational use. Past performance does
                 not guarantee future results.
@@ -634,6 +637,8 @@ function SignalsBody() {
 
           {/* ── Connect Telegram (gated feature) ── */}
           <ConnectTelegram />
+
+          <ConnectPushNotifications />
 
           {/* ── Plan picker + CTA — UPSELL ONLY ── */}
           <section id="plan-picker" className="space-y-2.5">

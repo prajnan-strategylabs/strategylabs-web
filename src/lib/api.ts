@@ -430,6 +430,45 @@ export async function apiUnlinkTelegram(token: string): Promise<void> {
   if (!res.ok && res.status !== 204) throw new Error("Failed to unlink Telegram");
 }
 
+// ── Native push notifications (open/close signal alerts) ─────────────────────
+
+export interface PushStatus {
+  is_registered: boolean;
+  enabled: boolean;
+  signal_min_tier: "free" | "trader" | "auto";
+}
+
+export async function apiRegisterPushToken(token: string, deviceToken: string, platform: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/push/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ token: deviceToken, platform }),
+  });
+  if (!res.ok && res.status !== 204) throw new Error("Failed to register push token");
+}
+
+export async function apiGetPushStatus(token: string): Promise<PushStatus> {
+  return get<PushStatus>("/api/v1/push/status", token);
+}
+
+export async function apiSetPushPaused(token: string, enabled: boolean): Promise<{ enabled: boolean }> {
+  const res = await fetch(`${API_BASE}/api/v1/push/pause`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) throw new Error("Failed to update push preferences");
+  return res.json() as Promise<{ enabled: boolean }>;
+}
+
+export async function apiUnregisterPushToken(token: string, deviceToken: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/push/unregister?token=${encodeURIComponent(deviceToken)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok && res.status !== 204) throw new Error("Failed to unregister push token");
+}
+
 // ── Admin ─────────────────────────────────────────────────────────────────────
 
 export async function apiAdminCheck(token: string): Promise<{ ok: boolean; email: string }> {
