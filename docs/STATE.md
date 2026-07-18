@@ -43,6 +43,11 @@
 - [x] Login OTP requests now go through `strategylabs-api` (`/api/v1/auth/otp`)
 - [x] Backend blocks OTP emails for everyone except `cprajnan@gmail.com` until `IS_LAUNCHED=true`
 
+### Admin analytics
+- [x] Pseudonymous first-party page-view tracking (visitor/session counts, top pages, referrers)
+- [x] Admin dashboard traffic overview for the last 30 days
+- [x] Applied `../strategylabs-api/app/migrations/004_web_analytics.sql` in Supabase
+
 ### Documentation
 - [x] `AGENTS.md` — primary AI context
 - [x] `docs/` folder with detailed reference

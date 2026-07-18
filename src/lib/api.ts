@@ -130,6 +130,21 @@ export async function apiGetConfig(): Promise<{ is_launched: boolean; waitlist_f
   }
 }
 
+// ── First-party analytics ────────────────────────────────────────────────────
+
+export interface PageViewPayload {
+  visitor_id: string;
+  session_id: string;
+  path: string;
+  title?: string;
+  referrer?: string;
+  utm?: Record<string, string>;
+}
+
+export async function apiTrackPageView(payload: PageViewPayload): Promise<void> {
+  await post<{ ok: boolean }>("/api/v1/analytics/page-view", payload);
+}
+
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
 export async function apiRequestOtp(email: string, redirectTo: string): Promise<{ ok: boolean }> {
@@ -477,6 +492,37 @@ export async function apiAdminCheck(token: string): Promise<{ ok: boolean; email
 
 export async function apiAdminStats(token: string) {
   return get<{ users: number; waitlist: number; blogs: number; strategies: number; signals: number }>("/api/v1/admin/stats", token);
+}
+
+export interface AdminAnalytics {
+  period_days: number;
+  page_views: number;
+  unique_visitors: number;
+  sessions: number;
+  waitlist_signups: number;
+  signup_conversion_rate: number;
+  today: {
+    page_views: number;
+    unique_visitors: number;
+  };
+  daily: Array<{
+    date: string;
+    page_views: number;
+    unique_visitors: number;
+  }>;
+  top_pages: Array<{
+    path: string;
+    page_views: number;
+    unique_visitors: number;
+  }>;
+  referrers: Array<{
+    referrer: string;
+    page_views: number;
+  }>;
+}
+
+export async function apiAdminAnalytics(token: string): Promise<AdminAnalytics> {
+  return get<AdminAnalytics>("/api/v1/admin/analytics", token);
 }
 
 export interface AdminBlogPost {

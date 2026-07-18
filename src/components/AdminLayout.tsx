@@ -255,6 +255,9 @@ export function AdminLayout() {
       {/* ── MAIN CONTENT OUTLET ── */}
       <main className="flex-1 overflow-y-auto px-6 py-8 md:px-10 md:py-10 max-w-7xl relative z-10 scrollbar-thin">
         <Outlet />
+        <footer className="mt-10 border-t border-line/45 pt-5 text-[11px] text-ink-subtle">
+          Not financial advice. Strategy Labs is an educational trading research tool.
+        </footer>
       </main>
     </div>
   );

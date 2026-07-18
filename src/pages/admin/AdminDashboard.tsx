@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { apiAdminStats, apiAdminExportWaitlist } from "../../lib/api";
+import { apiAdminAnalytics, apiAdminStats, apiAdminExportWaitlist, type AdminAnalytics } from "../../lib/api";
 import {
   Users,
   BookOpen,
@@ -10,7 +10,11 @@ import {
   Plus,
   Download,
   Loader2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  CalendarDays,
+  Eye,
+  Globe2,
+  UsersRound
 } from "lucide-react";
 
 export function AdminDashboard() {
@@ -21,6 +25,7 @@ export function AdminDashboard() {
     strategies: number;
     signals: number;
   } | null>(null);
+  const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -37,8 +42,17 @@ export function AdminDashboard() {
         const token = sessionRes.data.session?.access_token;
         if (!token) throw new Error("No secure session");
         
-        const data = await apiAdminStats(token);
-        setStats(data);
+        const [statsResult, analyticsResult] = await Promise.allSettled([
+          apiAdminStats(token),
+          apiAdminAnalytics(token),
+        ]);
+        if (statsResult.status === "rejected") throw statsResult.reason;
+        setStats(statsResult.value);
+        if (analyticsResult.status === "fulfilled") {
+          setAnalytics(analyticsResult.value);
+        } else {
+          triggerToast("Visitor analytics are unavailable until the database migration is applied.", "error");
+        }
       } catch (err: any) {
         triggerToast(err.message || "Failed to load stats", "error");
       } finally {
@@ -116,6 +130,35 @@ export function AdminDashboard() {
     }
   ];
 
+  const analyticsCards = [
+    {
+      label: `Page Views (${analytics?.period_days ?? 30}d)`,
+      value: analytics?.page_views ?? 0,
+      icon: Eye,
+      iconColor: "text-cyan-400",
+    },
+    {
+      label: "Unique Visitors",
+      value: analytics?.unique_visitors ?? 0,
+      icon: UsersRound,
+      iconColor: "text-emerald-400",
+    },
+    {
+      label: "Sessions",
+      value: analytics?.sessions ?? 0,
+      icon: Globe2,
+      iconColor: "text-violet-400",
+    },
+    {
+      label: "Views Today",
+      value: analytics?.today.page_views ?? 0,
+      icon: CalendarDays,
+      iconColor: "text-amber-400",
+    },
+  ];
+  const lastSevenDays = analytics?.daily.slice(-7) ?? [];
+  const dailyMax = Math.max(...lastSevenDays.map((day) => day.page_views), 1);
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* ── HEADER & ACTIONS ── */}
@@ -149,6 +192,106 @@ export function AdminDashboard() {
           </Link>
         </div>
       </div>
+
+      {/* ── VISITOR ANALYTICS ── */}
+      <section className="space-y-4">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-ink">Visitor Analytics</h2>
+            <p className="text-xs text-ink-muted mt-1">Pseudonymous first-party traffic from the last 30 days.</p>
+          </div>
+          <div className="text-right text-xs font-mono text-ink-subtle whitespace-nowrap">
+            <p>{analytics?.today.unique_visitors ?? 0} unique today</p>
+            <p className="mt-1 text-emerald-400">{analytics?.waitlist_signups ?? 0} signups · {analytics?.signup_conversion_rate ?? 0}% conversion</p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[1, 2, 3, 4].map((n) => (
+              <div key={n} className="card bg-bg-card/25 border-line/50 h-28 animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {analyticsCards.map((card) => (
+              <div key={card.label} className="card bg-bg-card/25 border-line/45 p-5 flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider">{card.label}</p>
+                  <p className="mt-2 text-2xl font-black text-ink">{card.value}</p>
+                </div>
+                <div className={`p-2 rounded-lg bg-bg-elev/50 border border-line/65 ${card.iconColor}`}>
+                  <card.icon className="h-4 w-4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!loading && (
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,1fr)]">
+            <div className="card bg-bg-card/25 border-line/45 p-6">
+              <div className="flex items-center justify-between gap-4">
+                <h3 className="text-sm font-bold text-ink">Last 7 days</h3>
+                <span className="text-[11px] font-mono text-ink-subtle">Page views</span>
+              </div>
+              <div className="mt-6 grid grid-cols-7 gap-3 h-40 items-end">
+                {lastSevenDays.map((day) => (
+                  <div key={day.date} className="h-full flex flex-col justify-end min-w-0 group">
+                    <div className="text-center text-[10px] font-mono text-ink-muted mb-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {day.page_views}
+                    </div>
+                    <div
+                      className="w-full min-h-[4px] rounded-sm bg-cyan-400/80 group-hover:bg-cyan-300 transition-colors"
+                      style={{ height: `${Math.max((day.page_views / dailyMax) * 100, 3)}%` }}
+                      title={`${day.page_views} page views, ${day.unique_visitors} unique visitors`}
+                    />
+                    <span className="mt-2 text-center text-[9px] font-mono text-ink-subtle">
+                      {new Date(`${day.date}T00:00:00Z`).toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card bg-bg-card/25 border-line/45 p-6">
+              <h3 className="text-sm font-bold text-ink">Top Referrers</h3>
+              <div className="mt-4 space-y-3">
+                {analytics?.referrers.length ? analytics.referrers.slice(0, 5).map((item) => (
+                  <div key={item.referrer} className="flex items-center justify-between gap-4 text-xs">
+                    <span className="text-ink-muted truncate" title={item.referrer}>{item.referrer}</span>
+                    <span className="font-mono font-semibold text-ink whitespace-nowrap">{item.page_views}</span>
+                  </div>
+                )) : (
+                  <p className="text-xs text-ink-subtle">No visitor data yet.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!loading && (
+          <div className="card bg-bg-card/25 border-line/45 overflow-hidden">
+            <div className="px-6 py-4 border-b border-line/45 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-ink">Top Pages</h3>
+              <span className="text-[11px] font-mono text-ink-subtle">Last 30 days</span>
+            </div>
+            {analytics?.top_pages.length ? (
+              <div className="divide-y divide-line/45">
+                {analytics.top_pages.slice(0, 6).map((page) => (
+                  <div key={page.path} className="grid grid-cols-[minmax(0,1fr)_90px_110px] gap-4 px-6 py-3.5 text-xs items-center">
+                    <span className="font-mono text-ink truncate" title={page.path}>{page.path}</span>
+                    <span className="text-right text-ink-muted">{page.page_views} views</span>
+                    <span className="text-right text-ink-muted">{page.unique_visitors} unique</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="px-6 py-6 text-xs text-ink-subtle">No visitor data yet.</p>
+            )}
+          </div>
+        )}
+      </section>
 
       {/* ── STATS GRID ── */}
       {loading ? (

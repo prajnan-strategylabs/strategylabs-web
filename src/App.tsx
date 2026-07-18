@@ -7,6 +7,7 @@ import { Login } from "./pages/Login";
 import { SplashScreen } from "./components/SplashScreen";
 import { BackButtonHandler } from "./components/BackButtonHandler";
 import { Toaster } from "./components/Toaster";
+import { AnalyticsTracker } from "./components/AnalyticsTracker";
 
 const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
 const StrategyLab = lazy(() => import("./pages/StrategyLab").then((m) => ({ default: m.StrategyLab })));
@@ -39,6 +40,7 @@ function App() {
       <Toaster />
       <BrowserRouter>
         <BackButtonHandler />
+        <AnalyticsTracker />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             {/* Public Landing & Auth routes */}
