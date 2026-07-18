@@ -69,6 +69,7 @@ export function Pricing() {
 
         <p className="mt-8 text-center text-xs text-ink-subtle">
           Annual plans available: Trader $149.99/year and Auto $399.99/year. All prices in USD. Cancel anytime.
+          Also available as an in-app subscription on Android.
         </p>
       </div>
     </section>
