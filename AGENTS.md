@@ -161,3 +161,5 @@ If you need to ask the user (Prajn) something before proceeding:
 - For **branding** copy → propose options, don't commit
 - For **architecture** changes → propose with tradeoffs, don't ship
 - For **dependencies** → suggest, don't auto-install
+
+## Imported Claude Cowork project instructions

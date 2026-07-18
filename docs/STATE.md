@@ -2,7 +2,7 @@
 
 > **Update this file every meaningful session.** It's the canonical "where are we" source.
 
-**Last updated:** 2026-05-24
+**Last updated:** 2026-06-21
 **Current sprint:** MVP launch — get a real waitlist page live at strategylabs.trade
 
 ---
@@ -38,6 +38,10 @@
   - `signals` table (RLS via strategy ownership)
 - [x] Waitlist form wired to `joinWaitlist()` with localStorage fallback in dev
 - [x] Validates email, handles duplicates idempotently, shows error UI
+
+### Pre-launch access control
+- [x] Login OTP requests now go through `strategylabs-api` (`/api/v1/auth/otp`)
+- [x] Backend blocks OTP emails for everyone except `cprajnan@gmail.com` until `IS_LAUNCHED=true`
 
 ### Documentation
 - [x] `AGENTS.md` — primary AI context

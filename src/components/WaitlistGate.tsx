@@ -21,13 +21,16 @@ const defaultIsApproved = (tier: string) => tier !== "free";
 export function WaitlistGate({ children, isApproved = defaultIsApproved }: WaitlistGateProps) {
   const { user, isSandbox } = useAuth();
   const status = useWaitlistStatus();
-  const { waitlist_full: waitlistFull } = useAppConfig();
+  const { is_launched: isLaunched, waitlist_full: waitlistFull } = useAppConfig();
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
 
   // Sandbox and native platforms always see the real dashboard (bypass waitlist)
   if (isSandbox || Capacitor.isNativePlatform()) return <>{children}</>;
+
+  // Once the backend launch flag is enabled, the waitlist gate is fully open.
+  if (isLaunched) return <>{children}</>;
 
   // Already approved users (paid tier, or an admin-set flag) bypass the gate
   if (user && isApproved(user.tier)) return <>{children}</>;
