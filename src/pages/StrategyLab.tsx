@@ -450,7 +450,7 @@ function StrategyLabBody() {
       }, 800);
 
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to complete walk-forward backtest.");
+      setErrorMessage(err.message || "Failed to complete the backtest.");
       setStage("spec");
     }
   }
@@ -1104,7 +1104,7 @@ function StrategyLabBody() {
           {/* Mobile view controls */}
           <div className="flex lg:hidden flex-col gap-3 pt-2">
             <Button size="lg" onClick={handleRunBacktest}>
-              <Play className="h-4 w-4 fill-current" /> Run walk-forward backtest
+              <Play className="h-4 w-4 fill-current" /> Run full backtest
             </Button>
             <Button variant="secondary" size="md" className="w-full" onClick={() => setStage("chat")}>
               Refine strategy rules
@@ -1147,7 +1147,7 @@ function StrategyLabBody() {
                 <div
                   className="text-[10px] uppercase tracking-[0.18em] font-bold text-accent"
                 >
-                  Walk-forward verified
+                  Robustness-checked backtest
                 </div>
                 <div
                   className="text-[42px] font-extrabold tabular-nums font-mono leading-none mt-1 text-accent"
@@ -1155,7 +1155,9 @@ function StrategyLabBody() {
                   {backtestStats.total_return_pct >= 0 ? "+" : ""}{backtestStats.total_return_pct}%
                 </div>
                 <div className="text-[11px] text-ink-muted mt-1">
-                  backtest return · 8.2 years · {currentSpec?.asset || "BTC/USDT"}
+                  backtest return · {backtestStats.params_used?.data_start && backtestStats.params_used?.data_end
+                    ? `${String(backtestStats.params_used.data_start).slice(0, 4)}–${String(backtestStats.params_used.data_end).slice(0, 4)}`
+                    : "full history"} · {currentSpec?.asset || "BTC/USDT"}
                 </div>
                 <div className="text-[12px] text-ink font-semibold mt-2 leading-snug max-w-[260px]">
                   {verdictFor(backtestStats)}

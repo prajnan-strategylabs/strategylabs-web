@@ -40,7 +40,7 @@ function renderCard(stats: ShareStats, asset: string, equity: number[]): HTMLCan
   ctx.fillText("STRATEGY LABS", 72, 110);
   ctx.fillStyle = SUBTLE;
   ctx.font = "600 26px system-ui, sans-serif";
-  ctx.fillText("AI WALK-FORWARD BACKTEST", 72, 156);
+  ctx.fillText("HISTORICAL BACKTEST RESULT", 72, 156);
 
   // Return %
   const ret = stats.total_return_pct;
@@ -49,7 +49,7 @@ function renderCard(stats: ShareStats, asset: string, equity: number[]): HTMLCan
   ctx.fillText(`${ret >= 0 ? "+" : ""}${ret}%`, 64, 360);
   ctx.fillStyle = MUTED;
   ctx.font = "600 34px system-ui, sans-serif";
-  ctx.fillText(`${asset} · 8 years of data · ${stats.trade_count} trades`, 72, 424);
+  ctx.fillText(`${asset} · historical backtest · ${stats.trade_count} trades`, 72, 424);
 
   // Equity curve
   if (equity.length > 1) {
@@ -127,7 +127,7 @@ export async function shareBacktestCard(
     });
     await Share.share({
       title: "My Strategy Labs backtest",
-      text: `My strategy returned ${stats.total_return_pct >= 0 ? "+" : ""}${stats.total_return_pct}% on ${asset} over 8 years of backtested data. Built with AI on strategylabs.trade`,
+      text: `My strategy returned ${stats.total_return_pct >= 0 ? "+" : ""}${stats.total_return_pct}% on ${asset} in a historical backtest. Built with AI on strategylabs.trade`,
       files: [written.uri],
     });
     return;

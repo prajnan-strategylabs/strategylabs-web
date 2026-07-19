@@ -19,7 +19,6 @@ import {
   NumFlow,
   Pill,
   Sparkline,
-  genWalk,
 } from "../components/MobileUI";
 import { StrategyDetail } from "../components/StrategyDetail";
 import { Button } from "../ui";
@@ -226,13 +225,11 @@ function DashboardHome({
   const isLoading = rows === null;
   const isEmpty = rows !== null && rows.length === 0;
 
-  // Aggregate stats — only meaningful if user has strategies
-  const aggSharpe = useMemo(() => {
+  // Aggregate stats — only meaningful if user has strategies. Everything here
+  // must come from real backtest metrics; never derive or invent a stat.
+  const aggTrades = useMemo(() => {
     if (!rows || rows.length === 0) return "—";
-    // Simple proxy: median Sharpe estimate from ret/dd ratio
-    const r = rows[0]?.ret ?? 0;
-    const d = rows[0]?.dd || 1;
-    return Math.max(0.4, Math.min(3.2, r / d / 50 + 1.2)).toFixed(2);
+    return rows.reduce((s, r) => s + r.trades, 0).toLocaleString();
   }, [rows]);
   const aggWin = useMemo(() => {
     if (!rows || rows.length === 0) return "—";
@@ -446,7 +443,7 @@ function DashboardHome({
 
           <div className="grid grid-cols-3 gap-2 mt-3 text-center">
             {([
-              ["Sharpe", aggSharpe, "var(--accent)"],
+              ["Trades", aggTrades, "var(--accent)"],
               ["Win-rate", aggWin, "var(--ink)"],
               ["Max DD", aggDD, "#fda4af"],
             ] as const).map(([k, v, c]) => (
@@ -710,12 +707,19 @@ function toRow(s: Strategy): StrategyRow {
     dd,
     trades,
     since: sinceLabel,
-    curve: genWalk(40, Math.abs(hashCode(s.id)) % 1000 || 7, 1.4, ret > 0 ? 0.5 : 0.0),
+    curve: retRamp(ret),
   };
 }
 
-function hashCode(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h << 5) - h + str.charCodeAt(i);
-  return h;
+/** Deterministic sparkline from the strategy's REAL backtest return: eased
+ *  ramp from 100 to 100+ret. Purely illustrative shape — endpoints are the
+ *  real numbers, nothing is randomized or invented. */
+function retRamp(ret: number, n = 40): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1);
+    const eased = t * t * (3 - 2 * t); // smoothstep
+    out.push(100 + ret * eased);
+  }
+  return out;
 }

@@ -97,8 +97,8 @@ export function HowItWorks() {
     const logs = [
       "Connecting to Binance Spot historical data vault...",
       "Ingesting 1,248,502 bars of high-fidelity OHLCV candles...",
-      "Simulating 8 years of historical regime walk-forward bounds...",
-      "Applying VIP exchange fees and 0.15% slippage penalties...",
+      "Simulating 8 years of history bar by bar...",
+      "Applying exchange fees and slippage penalties...",
       "Compiling trade matching matrix...",
       "Audit trail complete: Portfolio compound results generated!"
     ];
@@ -490,7 +490,7 @@ export function HowItWorks() {
 
                     <div className="flex items-center justify-between border-b border-line pb-2.5">
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[8px] font-bold text-emerald-400">
-                        <CheckCircle2 className="h-2.5 w-2.5" /> Walk-Forward Passed
+                        <CheckCircle2 className="h-2.5 w-2.5" /> Robustness Checked
                       </span>
                       <span className="text-[9px] font-mono font-bold text-ink-subtle uppercase">Compounding Results</span>
                     </div>

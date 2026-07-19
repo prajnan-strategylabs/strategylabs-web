@@ -56,8 +56,9 @@ export function Pricing() {
             Test for free. <span className="text-accent">Pay when you trade.</span>
           </h2>
           <p className="mt-4 text-lg text-ink-muted">
-            Every tier includes our full backtest engine and walk-forward validation.
-            Real-time signals and auto-execution are paid features.
+            Every tier includes our full backtest engine with Monte Carlo and
+            cost-stress robustness checks. Real-time signals and auto-execution
+            are paid features.
           </p>
         </div>
 

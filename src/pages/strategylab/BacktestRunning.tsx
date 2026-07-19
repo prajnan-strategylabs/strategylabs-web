@@ -6,11 +6,11 @@ interface BacktestRunningProps {
 }
 
 const STATUS_LINES = [
-  { at: 0, text: "Loading 8 years of market data" },
-  { at: 25, text: "Walking forward through history" },
+  { at: 0, text: "Loading historical market data" },
+  { at: 25, text: "Replaying history bar by bar" },
   { at: 55, text: "Executing your rules trade by trade" },
   { at: 80, text: "Computing risk and drawdown" },
-  { at: 95, text: "Finalizing results" },
+  { at: 95, text: "Running Monte Carlo and cost stress" },
 ];
 
 /** Full-screen takeover — the app's signature moment (DESIGN.md §7.2).
@@ -23,7 +23,7 @@ export function BacktestRunning({ equity, progress }: BacktestRunningProps) {
     <div className="animate-enter flex flex-col justify-center min-h-[62vh]">
       <div className="text-center">
         <div className="text-caption uppercase text-ink-subtle">
-          Walk-forward backtest
+          Full historical backtest
         </div>
         <div className="text-display text-ink tabular-nums mt-2">
           {progress}%
@@ -49,9 +49,9 @@ export function BacktestRunning({ equity, progress }: BacktestRunningProps) {
       </div>
 
       <div className="flex justify-center gap-6 mt-5 text-footnote text-ink-subtle tabular-nums">
-        <span>8.2y data</span>
-        <span>47 pairs</span>
-        <span>1.2M bars</span>
+        <span>up to 8y window</span>
+        <span>real fees</span>
+        <span>next-open fills</span>
       </div>
     </div>
   );
