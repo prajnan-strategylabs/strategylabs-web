@@ -461,8 +461,8 @@ function SignalsBody() {
 
                 <div className="space-y-2">
                   {openCalls.length === 0 ? (
-                    <div className="rounded-xl border border-line/60 bg-bg-card/30 p-3 text-[11px] text-ink-muted">
-                      No open positions right now. New entries appear here as soon as the scanner fires.
+                    <div className="rounded-xl border border-line/60 bg-bg-card/30 p-3 text-[11px] text-ink-muted leading-relaxed">
+                      No open positions right now. The scanner watches 47 pairs around the clock and only fires when a setup clears every filter. Most days nothing does. A quiet feed is the system being selective, not broken.
                     </div>
                   ) : (
                     openCalls.map((c, i) => (

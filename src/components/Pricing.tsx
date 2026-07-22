@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const TIERS = [
   {
@@ -11,7 +12,8 @@ const TIERS = [
       "Last 5 signals visible",
       "1 strategy slot in the lab",
     ],
-    cta: "Get started",
+    cta: "Start free",
+    href: "/login",
     highlight: false,
   },
   {
@@ -24,7 +26,8 @@ const TIERS = [
       "Full audit history + CSV exports",
       "10 active strategy slots",
     ],
-    cta: "Start 7-day trial",
+    cta: "Start free, upgrade anytime",
+    href: "/login",
     highlight: true,
     badge: "Most popular",
   },
@@ -40,6 +43,7 @@ const TIERS = [
       "Priority support",
     ],
     cta: "Talk to us",
+    href: "mailto:hello@strategylabs.trade",
     highlight: false,
   },
 ];
@@ -78,16 +82,19 @@ export function Pricing() {
 }
 
 function Tier({
-  name, price, sub, features, cta, highlight, badge,
+  name, price, sub, features, cta, href, highlight, badge,
 }: {
   name: string;
   price: string;
   sub: string;
   features: string[];
   cta: string;
+  href: string;
   highlight?: boolean;
   badge?: string;
 }) {
+  const isExternal = href.startsWith("mailto:") || href.startsWith("http");
+  const ctaClass = `mt-8 block w-full text-center ${highlight ? "btn-primary" : "btn-ghost"}`;
   return (
     <div
       className={`relative card transition-all hover:-translate-y-1 ${
@@ -118,12 +125,15 @@ function Tier({
         ))}
       </ul>
 
-      <a
-        href="#waitlist"
-        className={`mt-8 block w-full text-center ${highlight ? "btn-primary" : "btn-ghost"}`}
-      >
-        {cta}
-      </a>
+      {isExternal ? (
+        <a href={href} className={ctaClass}>
+          {cta}
+        </a>
+      ) : (
+        <Link to={href} className={ctaClass}>
+          {cta}
+        </Link>
+      )}
     </div>
   );
 }
