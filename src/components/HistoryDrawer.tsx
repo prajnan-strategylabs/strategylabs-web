@@ -219,9 +219,12 @@ export function HistoryDrawer({
         <div className="flex items-center justify-between px-5 py-4 border-b border-line/40 bg-bg/50 backdrop-blur-sm">
           <div className="min-w-0">
             <h2 className="text-[14px] font-bold tracking-tight">History</h2>
+            {/* Two figures, not one blend: total_trades / cum_return_pct span the
+                whole record, which is backtested up to backtest_through and live
+                after it. Stating both keeps "all-time" from reading as live. */}
             <div className="text-[10px] text-ink-subtle font-mono mt-0.5">
               {data
-                ? `${data.total_trades.toLocaleString()} trades · +${data.cum_return_pct}% all-time`
+                ? `${data.live_trades.toLocaleString()} live · ${data.total_trades.toLocaleString()} incl. backtest`
                 : "Loading…"}
             </div>
           </div>
