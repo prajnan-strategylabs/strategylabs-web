@@ -370,15 +370,29 @@ function SignalsBody() {
     [data?.recent_calls, paidClosedCalls],
   );
 
-  const liveSinceLabel = useMemo(() => {
-    if (!data?.live_since) return "";
+  const monthYear = (iso?: string) => {
+    if (!iso) return "";
     try {
-      const d = new Date(data.live_since);
-      return d.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+      return new Date(iso).toLocaleDateString(undefined, {
+        month: "short",
+        year: "numeric",
+      });
     } catch {
-      return data.live_since;
+      return iso;
     }
-  }, [data?.live_since]);
+  };
+
+  const liveSinceLabel = useMemo(
+    () => monthYear(data?.live_since),
+    [data?.live_since],
+  );
+
+  /** When real signals started. Distinct from live_since, which is the first
+   *  backtested trade (2017) — the headline must not conflate the two. */
+  const liveStartLabel = useMemo(
+    () => monthYear(data?.live_start),
+    [data?.live_start],
+  );
 
   return (
     <div className="space-y-4 pb-6 animate-fade-in">
@@ -406,7 +420,7 @@ function SignalsBody() {
               <LiveDot size={5} />{" "}
               {isPaid
                 ? `${openCalls.length} active · ${closedCalls.length} closed`
-                : `verified · ${data ? data.total_trades.toLocaleString() : "—"} trades`}
+                : `${data ? data.live_trades.toLocaleString() : "—"} live trades closed`}
             </div>
           </div>
         </div>
@@ -529,33 +543,44 @@ function SignalsBody() {
             />
             <div className="relative p-5">
               <div className="text-caption uppercase text-ink-subtle">
-                Cumulative return · since {liveSinceLabel}
+                Live return · since {liveStartLabel}
               </div>
               <div className="flex items-baseline gap-2 mt-1.5">
                 <DigitRoller
-                  value={`+${Math.round(data.cum_return_pct).toLocaleString()}%`}
+                  value={`${data.live_return_pct >= 0 ? "+" : ""}${data.live_return_pct}%`}
                   height={52}
                   className="text-[48px] font-extrabold tracking-tight tabular-nums leading-none"
                   style={{
-                    color: "var(--accent)",
+                    color:
+                      data.live_return_pct >= 0
+                        ? "var(--accent)"
+                        : "var(--danger, #f87171)",
                     letterSpacing: "-0.03em",
                   }}
                 />
               </div>
               <div className="text-[11px] text-ink-muted mt-1">
-                <span className="font-bold" style={{ color: "var(--accent)" }}>
-                  +{data.ytd_return_pct}% YTD
+                <span
+                  className="font-bold"
+                  style={{
+                    color:
+                      data.live_pnl_usd >= 0
+                        ? "var(--accent)"
+                        : "var(--danger, #f87171)",
+                  }}
+                >
+                  {data.live_pnl_usd >= 0 ? "+" : "−"}$
+                  {Math.abs(data.live_pnl_usd).toLocaleString(undefined, {
+                    maximumFractionDigits: 0,
+                  })}
                 </span>{" "}
-                · vs BTC HODL{" "}
-                <span className="text-ink">
-                  +{data.btc_hodl_pct_same_period}%
-                </span>{" "}
-                over same period
+                on a $5,000 account · {data.live_trades} closed{" "}
+                {data.live_trades === 1 ? "trade" : "trades"}
               </div>
 
               <div className="mt-4 -mx-2">
                 <EquityCurve
-                  data={data.equity_curve.map(([, v]) => v)}
+                  data={(data.live_equity_curve ?? []).map(([, v]) => v)}
                   height={84}
                   animated
                 />
@@ -563,10 +588,10 @@ function SignalsBody() {
 
               <div className="grid grid-cols-4 gap-2 mt-3 text-center">
                 {([
-                  ["Win", `${data.win_rate_pct}%`, "var(--accent)"],
-                  ["Sharpe", data.sharpe.toFixed(2), "var(--ink)"],
-                  ["Avg R", `${data.avg_r >= 0 ? "+" : ""}${data.avg_r}R`, "var(--accent)"],
-                  ["Trades", data.total_trades.toLocaleString(), "var(--ink)"],
+                  ["Win", `${data.live_win_rate_pct}%`, "var(--accent)"],
+                  ["Avg R", `${data.live_avg_r >= 0 ? "+" : ""}${data.live_avg_r}R`, "var(--accent)"],
+                  ["Trades", data.live_trades.toLocaleString(), "var(--ink)"],
+                  ["Since", liveStartLabel, "var(--ink)"],
                 ] as const).map(([k, v, c]) => (
                   <div
                     key={k}
@@ -625,11 +650,14 @@ function SignalsBody() {
                   By the year
                 </h2>
                 <div className="text-[10px] text-ink-muted">
-                  Closed PnL · audited
+                  Closed PnL · backtested
+                  {data.backtest_through
+                    ? ` through ${monthYear(data.backtest_through)}, live after`
+                    : ""}
                 </div>
               </div>
               <div className="text-[10px] text-ink-subtle tabular-nums">
-                {data.year_breakdown.length}y verified
+                {data.year_breakdown.length}y
               </div>
             </div>
             <YearBars years={data.year_breakdown} animate={animYears} />
