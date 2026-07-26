@@ -382,17 +382,26 @@ function SignalsBody() {
     }
   };
 
-  const liveSinceLabel = useMemo(
-    () => monthYear(data?.live_since),
-    [data?.live_since],
-  );
-
-  /** When real signals started. Distinct from live_since, which is the first
-   *  backtested trade (2017) — the headline must not conflate the two. */
-  const liveStartLabel = useMemo(
-    () => monthYear(data?.live_start),
-    [data?.live_start],
-  );
+  /**
+   * The live-only block, or null if the API predates it. Null must render as
+   * "unknown" rather than zero — a 0% live return would be a fabricated number,
+   * and this page is the one place that must not invent performance.
+   *
+   * Note live_start (first REAL signal) is deliberately not live_since, which is
+   * the first backtested trade in 2017.
+   */
+  const live = useMemo(() => {
+    if (!data || typeof data.live_trades !== "number") return null;
+    return {
+      trades: data.live_trades,
+      returnPct: data.live_return_pct ?? 0,
+      pnlUsd: data.live_pnl_usd ?? 0,
+      winRatePct: data.live_win_rate_pct ?? 0,
+      avgR: data.live_avg_r ?? 0,
+      equity: data.live_equity_curve ?? [],
+      startLabel: monthYear(data.live_start),
+    };
+  }, [data]);
 
   return (
     <div className="space-y-4 pb-6 animate-fade-in">
@@ -420,7 +429,7 @@ function SignalsBody() {
               <LiveDot size={5} />{" "}
               {isPaid
                 ? `${openCalls.length} active · ${closedCalls.length} closed`
-                : `${data ? data.live_trades.toLocaleString() : "—"} live trades closed`}
+                : `${live ? live.trades.toLocaleString() : "—"} live trades closed`}
             </div>
           </div>
         </div>
@@ -543,16 +552,20 @@ function SignalsBody() {
             />
             <div className="relative p-5">
               <div className="text-caption uppercase text-ink-subtle">
-                Live return · since {liveStartLabel}
+                Live return{live ? ` · since ${live.startLabel}` : ""}
               </div>
               <div className="flex items-baseline gap-2 mt-1.5">
                 <DigitRoller
-                  value={`${data.live_return_pct >= 0 ? "+" : ""}${data.live_return_pct}%`}
+                  value={
+                    live
+                      ? `${live.returnPct >= 0 ? "+" : ""}${live.returnPct}%`
+                      : "—"
+                  }
                   height={52}
                   className="text-[48px] font-extrabold tracking-tight tabular-nums leading-none"
                   style={{
                     color:
-                      data.live_return_pct >= 0
+                      !live || live.returnPct >= 0
                         ? "var(--accent)"
                         : "var(--danger, #f87171)",
                     letterSpacing: "-0.03em",
@@ -560,27 +573,33 @@ function SignalsBody() {
                 />
               </div>
               <div className="text-[11px] text-ink-muted mt-1">
-                <span
-                  className="font-bold"
-                  style={{
-                    color:
-                      data.live_pnl_usd >= 0
-                        ? "var(--accent)"
-                        : "var(--danger, #f87171)",
-                  }}
-                >
-                  {data.live_pnl_usd >= 0 ? "+" : "−"}$
-                  {Math.abs(data.live_pnl_usd).toLocaleString(undefined, {
-                    maximumFractionDigits: 0,
-                  })}
-                </span>{" "}
-                on a $5,000 account · {data.live_trades} closed{" "}
-                {data.live_trades === 1 ? "trade" : "trades"}
+                {live ? (
+                  <>
+                    <span
+                      className="font-bold"
+                      style={{
+                        color:
+                          live.pnlUsd >= 0
+                            ? "var(--accent)"
+                            : "var(--danger, #f87171)",
+                      }}
+                    >
+                      {live.pnlUsd >= 0 ? "+" : "−"}$
+                      {Math.abs(live.pnlUsd).toLocaleString(undefined, {
+                        maximumFractionDigits: 0,
+                      })}
+                    </span>{" "}
+                    on a $5,000 account · {live.trades} closed{" "}
+                    {live.trades === 1 ? "trade" : "trades"}
+                  </>
+                ) : (
+                  "Live figures syncing…"
+                )}
               </div>
 
               <div className="mt-4 -mx-2">
                 <EquityCurve
-                  data={(data.live_equity_curve ?? []).map(([, v]) => v)}
+                  data={(live?.equity ?? []).map(([, v]) => v)}
                   height={84}
                   animated
                 />
@@ -588,10 +607,10 @@ function SignalsBody() {
 
               <div className="grid grid-cols-4 gap-2 mt-3 text-center">
                 {([
-                  ["Win", `${data.live_win_rate_pct}%`, "var(--accent)"],
-                  ["Avg R", `${data.live_avg_r >= 0 ? "+" : ""}${data.live_avg_r}R`, "var(--accent)"],
-                  ["Trades", data.live_trades.toLocaleString(), "var(--ink)"],
-                  ["Since", liveStartLabel, "var(--ink)"],
+                  ["Win", live ? `${live.winRatePct}%` : "—", "var(--accent)"],
+                  ["Avg R", live ? `${live.avgR >= 0 ? "+" : ""}${live.avgR}R` : "—", "var(--accent)"],
+                  ["Trades", live ? live.trades.toLocaleString() : "—", "var(--ink)"],
+                  ["Since", live ? live.startLabel : "—", "var(--ink)"],
                 ] as const).map(([k, v, c]) => (
                   <div
                     key={k}

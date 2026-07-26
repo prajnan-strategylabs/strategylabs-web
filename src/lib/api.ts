@@ -301,16 +301,20 @@ export interface V22Stats {
    * The `cum_*` / `win_rate_pct` / `total_trades` fields below span the whole
    * record, which is backtested up to `backtest_through` and live after it.
    * Don't mix the two in one figure.
+   *
+   * Optional because an API deployed before these existed omits them entirely —
+   * callers must treat absence as "unknown", not as zero, or the page reports a
+   * fabricated 0% while the backend catches up.
    */
-  live_start: string;
-  live_trades: number;
-  live_return_pct: number;
-  live_pnl_usd: number;
-  live_win_rate_pct: number;
-  live_avg_r: number;
-  live_equity_curve: [number, number][];
+  live_start?: string;
+  live_trades?: number;
+  live_return_pct?: number;
+  live_pnl_usd?: number;
+  live_win_rate_pct?: number;
+  live_avg_r?: number;
+  live_equity_curve?: [number, number][];
   /** Last date covered by backtested data; live begins after this. */
-  backtest_through: string;
+  backtest_through?: string;
 
   live_since: string;
   cum_return_pct: number;

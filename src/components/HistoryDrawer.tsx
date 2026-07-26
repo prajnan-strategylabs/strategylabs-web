@@ -224,7 +224,7 @@ export function HistoryDrawer({
                 after it. Stating both keeps "all-time" from reading as live. */}
             <div className="text-[10px] text-ink-subtle font-mono mt-0.5">
               {data
-                ? `${data.live_trades.toLocaleString()} live · ${data.total_trades.toLocaleString()} incl. backtest`
+                ? `${typeof data.live_trades === "number" ? data.live_trades.toLocaleString() : "—"} live · ${data.total_trades.toLocaleString()} incl. backtest`
                 : "Loading…"}
             </div>
           </div>
