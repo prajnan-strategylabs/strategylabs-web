@@ -11,42 +11,44 @@ export default {
         // Hex mirrors of the CSS tokens in index.css (Tailwind v3 needs plain
         // colors for opacity modifiers like bg-card/45). Keep both in sync.
         surface: {
-          0: "#070b14",
-          1: "#0d1322",
-          2: "#131a2c",
-          3: "#1a2238",
+          0: "#0e0f12",
+          1: "#16181d",
+          2: "#1e2128",
+          3: "#282c35",
         },
         // Legacy names — alias onto the token system
         bg: {
-          DEFAULT: "#070b14",
-          card:    "#0d1322",
-          elev:    "#131a2c",
+          DEFAULT: "#0e0f12",
+          card:    "#16181d",
+          elev:    "#1e2128",
         },
         ink: {
-          DEFAULT: "#e8ecf5",
-          muted:   "#a5a9b2",   // ink-70 over surface-0
-          subtle:  "#6c7079",   // ink-45 over surface-0
-          faint:   "#3f434c",   // ink-25 over surface-0
+          DEFAULT: "#f0efec",
+          muted:   "#adaca8",   // ink-70 over surface-0
+          subtle:  "#918f8b",   // ink-45 over surface-0 — AA at 10-11px
+          faint:   "#514f4c",   // ink-25 over surface-0
         },
+        // Brass is the brand. Green/red mean money and nothing else — see the
+        // note in index.css for why these must not share a hue.
         accent: {
-          DEFAULT: "#2ee6b8",
-          pressed: "#26c9a1",
-          soft:    "rgba(46, 230, 184, 0.12)",
-          warm:    "#ffb02e",
-          danger:  "#ff5c7a",
+          DEFAULT: "#d9a83c",
+          pressed: "#c2922f",
+          soft:    "rgba(217, 168, 60, 0.14)",
+          warm:    "#d9a83c",
+          danger:  "#f2555a",
         },
-        positive: "#2ee6b8",
+        positive: "#3ecf8e",
         negative: {
-          DEFAULT: "#ff5c7a",
-          soft:    "rgba(255, 92, 122, 0.12)",
+          DEFAULT: "#f2555a",
+          soft:    "rgba(242, 85, 90, 0.14)",
         },
         warning: {
-          DEFAULT: "#ffb02e",
-          soft:    "rgba(255, 176, 46, 0.10)",
+          DEFAULT: "#d9a83c",
+          soft:    "rgba(217, 168, 60, 0.12)",
         },
         line: {
-          DEFAULT: "#1d2438",
-          strong:  "#29314d",
+          DEFAULT: "#23262e",
+          strong:  "#333845",
         },
       },
       spacing: {
@@ -61,6 +63,9 @@ export default {
       fontFamily: {
         sans: ["Inter Variable", "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "monospace"],
+        // Headings and section titles. Deliberately NOT used for numbers —
+        // DESIGN.md §1 rule 2 requires data keep one tabular face.
+        display: ["Instrument Serif", "ui-serif", "Georgia", "serif"],
       },
       // Type scale (DESIGN.md §3) — usage: text-display, text-title-1, …
       fontSize: {
