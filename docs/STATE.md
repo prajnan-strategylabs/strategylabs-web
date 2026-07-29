@@ -2,7 +2,7 @@
 
 > **Update this file every meaningful session.** It's the canonical "where are we" source.
 
-**Last updated:** 2026-06-21
+**Last updated:** 2026-07-30
 **Current sprint:** MVP launch — get a real waitlist page live at strategylabs.trade
 
 ---
@@ -47,6 +47,12 @@
 - [x] Pseudonymous first-party page-view tracking (visitor/session counts, top pages, referrers)
 - [x] Admin dashboard traffic overview for the last 30 days
 - [x] Applied `../strategylabs-api/app/migrations/004_web_analytics.sql` in Supabase
+
+### Mobile OTA updates
+- [x] Capacitor 8 live-update plugin is installed and synced for Android
+- [x] Native splash checks a six-second manifest timeout, safely activates newer bundles, and falls back to the installed bundle on any failure
+- [x] FastAPI publishes immutable R2 bundles through a deploy-secret-protected endpoint
+- [x] Publishing flow and production setup documented in `docs/OTA_UPDATES.md`
 
 ### Documentation
 - [x] `AGENTS.md` — primary AI context
@@ -97,6 +103,10 @@ Once that's done, the waitlist captures real emails.
 ### Sprint 3: Mobile + polish
 6. **Capacitor wrap** for iOS/Android (2-4 hr)
 7. **App Store + Play Store submission**
+8. **Deploy OTA support before its first use**
+   - Deploy `strategylabs-api` with the R2 and `LIVE_UPDATE_DEPLOY_SECRET` secrets
+   - Ship one store build containing the updater plugin
+   - Publish later JavaScript-only releases with `npm run publish:ota`
 
 ---
 
