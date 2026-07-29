@@ -1,19 +1,20 @@
 import { useState, useEffect } from "react";
 import { Navigate, Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { useAuth, type UserTier } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import { LogoLockup } from "./Logo";
-import { LayoutDashboard, Beaker, Radio, LogOut, ShieldAlert, Shield, Bell } from "lucide-react";
+import { LayoutDashboard, Beaker, Radio, LogOut, Shield, Bell } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { apiAdminCheck } from "../lib/api";
 import { Capacitor } from "@capacitor/core";
 import { Sheet, TabBar, Button, ListRow } from "../ui";
 
 export function AppLayout() {
-  const { user, loading, tierResolved, signOut, isSandbox, updateSandboxTier } = useAuth();
+  const { user, loading, tierResolved, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   const isAndroid = Capacitor.getPlatform() === "android";
   const isIOS = Capacitor.getPlatform() === "ios";
@@ -83,26 +84,11 @@ export function AppLayout() {
     user.tier === "free"
       ? "Free"
       : user.tier.charAt(0).toUpperCase() + user.tier.slice(1);
+  const activeTab = navItems.find((item) => location.pathname === item.to);
+  const mobileTitle = activeTab?.label ?? "Strategy Labs";
 
   return (
-    <div className="min-h-screen bg-bg text-ink flex flex-col md:flex-row">
-      {/* ── SANDBOX CONTROLLER PILL ── */}
-      {isSandbox && (
-        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-full border border-warning/30 bg-warning-soft px-3 py-1.5 text-footnote font-semibold text-warning backdrop-blur-md">
-          <ShieldAlert className="h-3.5 w-3.5 flex-none" />
-          <span>Sandbox Tier:</span>
-          <select
-            value={user.tier}
-            onChange={(e) => updateSandboxTier(e.target.value as UserTier)}
-            className="rounded bg-warning/20 border-none px-2 py-0.5 text-warning font-bold focus:ring-0 cursor-pointer outline-none"
-          >
-            <option value="free" className="bg-bg text-ink">Free</option>
-            <option value="trader" className="bg-bg text-ink">Trader ($19.99)</option>
-            <option value="auto" className="bg-bg text-ink">Auto ($49.99)</option>
-          </select>
-        </div>
-      )}
-
+    <div className="h-[100dvh] bg-bg text-ink flex flex-col overflow-hidden md:h-auto md:min-h-screen md:flex-row">
       {/* ── DESKTOP SIDEBAR ── */}
       <aside className="hidden md:flex flex-col w-64 border-r border-line bg-surface-1/40 p-6 flex-none">
         <div className="flex items-center gap-2 mb-8">
@@ -167,25 +153,28 @@ export function AppLayout() {
         </div>
       </aside>
 
-      {/* ── MOBILE HEADER (TOP BAR) ── */}
+      {/* ── MOBILE HEADER — large-title pattern, compact after scroll ── */}
       <header
-        className="md:hidden relative z-40 flex items-center justify-between px-5 pb-2.5 border-b border-line"
+        className={`md:hidden relative z-40 flex items-end justify-between px-5 transition-[padding,background-color,border-color] duration-state ${
+          isScrolled ? "pb-2.5 border-b border-line bg-surface-0/95" : "pb-4 border-b border-transparent bg-surface-0"
+        }`}
         style={{
           paddingTop: topHeaderPadding,
-          background: "color-mix(in srgb, var(--surface-0) 88%, transparent)",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
+          backdropFilter: isScrolled ? "blur(16px)" : undefined,
+          WebkitBackdropFilter: isScrolled ? "blur(16px)" : undefined,
         }}
       >
-        <LogoLockup />
-        <div className="flex items-center gap-2.5">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-caption uppercase text-accent">
-            {tierLabel}
-          </span>
+        <div className="min-w-0">
+          {!isScrolled && <p className="text-caption text-ink-subtle">STRATEGY LABS</p>}
+          <h1 className={`text-ink transition-[font-size,line-height] duration-state ${isScrolled ? "text-title-2" : "text-title-1"}`}>
+            {mobileTitle}
+          </h1>
+        </div>
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setProfileOpen(true)}
             aria-label="Open profile"
-            className="h-9 w-9 rounded-full bg-surface-2 border border-line flex items-center justify-center text-footnote font-bold text-ink-muted active:bg-surface-3 transition-colors duration-press select-none flex-none uppercase"
+            className="h-10 w-10 rounded-full bg-surface-2 border border-line flex items-center justify-center text-footnote font-bold text-ink-muted active:bg-surface-3 transition-colors duration-press select-none flex-none uppercase"
           >
             {(user.display_name?.[0] || user.email?.[0]) ?? "U"}
           </button>
@@ -193,8 +182,11 @@ export function AppLayout() {
       </header>
 
       {/* ── MAIN CONTENT — keyed by route for page transition ── */}
-      <main className="relative z-0 flex-1 overflow-y-auto pb-28 md:pb-6 px-5 md:px-6 pt-3 md:pt-6">
-        <div key={location.pathname} className="max-w-4xl mx-auto w-full animate-page">
+      <main
+        className="native-scroll relative z-0 flex-1 overflow-y-auto pb-28 md:pb-6 px-5 md:px-6 pt-4 md:pt-6"
+        onScroll={(event) => setIsScrolled(event.currentTarget.scrollTop > 24)}
+      >
+        <div key={location.pathname} className="max-w-none md:max-w-4xl mx-auto w-full animate-page">
           <Outlet />
         </div>
       </main>

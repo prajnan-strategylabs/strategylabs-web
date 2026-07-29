@@ -1,17 +1,17 @@
 import { Capacitor } from "@capacitor/core";
-import { Haptics } from "@capacitor/haptics";
+import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
 
 const isNative = Capacitor.isNativePlatform();
 
-function pulse() {
+function safely(action: () => Promise<void>) {
   if (!isNative) return;
-  Haptics.vibrate({ duration: 15 }).catch(() => {});
+  action().catch(() => {});
 }
 
 export function hapticLight() {
-  pulse();
+  safely(() => Haptics.impact({ style: ImpactStyle.Light }));
 }
 
 export function hapticSuccess() {
-  pulse();
+  safely(() => Haptics.notification({ type: NotificationType.Success }));
 }

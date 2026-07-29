@@ -206,12 +206,21 @@
 /* ── Native App Shell UX Enhancements ── */
 html.is-native,
 body.is-native {
+  background: var(--surface-0);
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none !important;
   overscroll-behavior-y: none !important;
   overscroll-behavior-x: none !important;
+}
+
+/* The native shell owns the one vertically scrolling surface. This preserves
+   momentum scrolling while stopping browser-style overscroll from leaking into
+   the app frame. */
+.native-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
 }
 
 /* Allow text inputs and designated content blocks to be selectable */
