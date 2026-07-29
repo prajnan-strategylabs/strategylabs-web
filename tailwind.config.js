@@ -68,15 +68,25 @@ export default {
         display: ["Instrument Serif", "ui-serif", "Georgia", "serif"],
       },
       // Type scale (DESIGN.md §3) — usage: text-display, text-title-1, …
+      // Measured before this change: 51 arbitrary text-[Npx] values against 2
+      // uses of the scale, 11 distinct sizes (7.5px to 48px), 76% of text at
+      // weight 700-800. Uniform emphasis is the same as none — that, not the
+      // palette, is why the UI read as characterless.
+      //
+      // The scale now carries the hierarchy so components don't have to invent
+      // it: one large moment per screen, a real gap down to body, and captions
+      // that stop shouting. Weights drop because size is doing the work.
       fontSize: {
-        display:    ["40px", { lineHeight: "44px", fontWeight: "800", letterSpacing: "-0.03em" }],
-        "title-1":  ["28px", { lineHeight: "32px", fontWeight: "800", letterSpacing: "-0.02em" }],
-        "title-2":  ["20px", { lineHeight: "24px", fontWeight: "700", letterSpacing: "-0.01em" }],
-        headline:   ["16px", { lineHeight: "22px", fontWeight: "650" }],
-        body:       ["14.5px", { lineHeight: "21px", fontWeight: "450" }],
-        footnote:   ["12.5px", { lineHeight: "17px", fontWeight: "500" }],
-        caption:    ["11px", { lineHeight: "14px", fontWeight: "600", letterSpacing: "0.06em" }],
-        stat:       ["22px", { lineHeight: "26px", fontWeight: "750", letterSpacing: "-0.01em" }],
+        display:    ["52px", { lineHeight: "52px", fontWeight: "500", letterSpacing: "-0.035em" }],
+        "title-1":  ["30px", { lineHeight: "34px", fontWeight: "400", letterSpacing: "-0.015em" }],
+        "title-2":  ["21px", { lineHeight: "26px", fontWeight: "400", letterSpacing: "-0.01em" }],
+        headline:   ["16px", { lineHeight: "22px", fontWeight: "600" }],
+        body:       ["14.5px", { lineHeight: "21px", fontWeight: "440" }],
+        footnote:   ["12.5px", { lineHeight: "17px", fontWeight: "440" }],
+        // 11px floor. Anything below was failing AA and is unreadable on a
+        // phone; the app previously went down to 7.5px.
+        caption:    ["11px", { lineHeight: "14px", fontWeight: "520", letterSpacing: "0.05em" }],
+        stat:       ["22px", { lineHeight: "26px", fontWeight: "500", letterSpacing: "-0.01em" }],
       },
       transitionTimingFunction: {
         "out-quart": "cubic-bezier(0.25, 1, 0.5, 1)",

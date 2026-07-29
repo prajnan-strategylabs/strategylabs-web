@@ -20,7 +20,7 @@ export function YearBars({
             className="grid grid-cols-[36px_1fr_64px] gap-2.5 items-center"
           >
             <div
-              className="text-[11px] font-bold tabular-nums"
+              className="text-caption tabular-nums"
               style={{ color: y.is_ytd ? "var(--ink)" : "var(--ink-muted)" }}
             >
               '{String(y.year).slice(-2)}
@@ -37,7 +37,7 @@ export function YearBars({
               />
               {y.label && (
                 <span
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] uppercase tracking-wider font-bold"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-caption uppercase tracking-wider"
                   style={{ color: "var(--ink-subtle)" }}
                 >
                   {y.label}
@@ -45,7 +45,7 @@ export function YearBars({
               )}
             </div>
             <div
-              className="text-right font-extrabold text-[12px] tabular-nums"
+              className="text-right text-footnote tabular-nums"
               style={{ color }}
             >
               {pos ? "+" : ""}

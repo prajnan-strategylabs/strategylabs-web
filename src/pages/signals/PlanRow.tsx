@@ -58,29 +58,29 @@ export function PlanRow({
           </span>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-bold text-[14px]">{plan.name}</span>
+              <span className="font-bold text-body">{plan.name}</span>
               {plan.featured && !isCurrent && (
-                <Pill tone="accent" className="!py-[1px] !text-[8px]">
+                <Pill tone="accent" className="!py-[1px] !text-caption">
                   popular
                 </Pill>
               )}
               {isCurrent && (
-                <Pill tone="info" className="!py-[1px] !text-[8px]">
+                <Pill tone="info" className="!py-[1px] !text-caption">
                   your plan
                 </Pill>
               )}
             </div>
-            <div className="text-[11px] text-ink-muted">{plan.note}</div>
+            <div className="text-caption text-ink-muted">{plan.note}</div>
           </div>
         </div>
         <div className="text-right flex-none">
           <span
-            className="tabular-nums font-extrabold text-[15px]"
+            className="tabular-nums font-extrabold text-body"
             style={{ color: plan.featured ? "var(--accent)" : "var(--ink)" }}
           >
             {plan.price}
           </span>
-          <span className="text-[10px] text-ink-muted">{plan.per}</span>
+          <span className="text-caption text-ink-muted">{plan.per}</span>
         </div>
       </div>
       {/* Feature bullets */}
@@ -88,7 +88,7 @@ export function PlanRow({
         {plan.features.map((f) => (
           <span
             key={f}
-            className="text-[10px] text-ink-subtle flex items-center gap-1"
+            className="text-caption text-ink-subtle flex items-center gap-1"
           >
             <span
               className="h-1 w-1 rounded-full flex-none"

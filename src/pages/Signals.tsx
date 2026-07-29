@@ -265,7 +265,6 @@ function SignalsBody() {
   const [rcOfferings, setRcOfferings] = useState<RCProductOfferings | null>(null);
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
   const [purchaseBusy, setPurchaseBusy] = useState(false);
-  const [purchaseError, setPurchaseError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadOfferings() {
@@ -278,10 +277,6 @@ function SignalsBody() {
     }
     loadOfferings();
   }, []);
-
-  useEffect(() => {
-    setPurchaseError(null);
-  }, [plan, billing]);
 
   const dynamicPlans = useMemo(() => {
     return PLANS.map((p) => {
@@ -335,16 +330,17 @@ function SignalsBody() {
 
     try {
       setPurchaseBusy(true);
-      setPurchaseError(null);
       const purchased = await purchaseSubscriptionPackage(selectedPlan.id, billing);
       if (purchased) {
         updateSandboxTier(selectedPlan.id as any);
         return;
       }
-      setPurchaseError("Purchase was not completed. If the Play Store did not open, check the subscription product setup.");
+      // Surfaced as a toast rather than a panel under the pricing table — the
+      // old block pushed store/product-setup detail into the buying flow.
+      toast("Purchase was not completed.", "error");
     } catch (e) {
       console.error("Purchase error", e);
-      setPurchaseError(e instanceof Error ? e.message : "Purchase failed. Please try again.");
+      toast(e instanceof Error ? e.message : "Purchase failed. Please try again.", "error");
     } finally {
       setPurchaseBusy(false);
     }
@@ -422,10 +418,10 @@ function SignalsBody() {
             />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight">
+            <h1 className="font-mono text-title-2 tracking-tight uppercase">
               {isPaid ? "Signals" : "Live Signals"}
             </h1>
-            <div className="text-[11px] text-ink-muted flex items-center gap-1.5">
+            <div className="text-caption text-ink-muted flex items-center gap-1.5">
               <LiveDot size={5} />{" "}
               {isPaid
                 ? `${openCalls.length} active · ${closedCalls.length} closed`
@@ -438,7 +434,7 @@ function SignalsBody() {
             <button
               onClick={() => setHistoryOpen(true)}
               aria-label="View history"
-              className="h-9 px-3 rounded-lg border border-line/60 bg-bg-card/40 flex items-center gap-1.5 text-[11px] font-bold text-ink-muted hover:text-ink hover:border-line active:scale-95 transition"
+              className="h-9 px-3 rounded-lg border border-line/60 bg-bg-card/40 flex items-center gap-1.5 text-caption text-ink-muted hover:text-ink hover:border-line active:scale-95 transition"
             >
               <History className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">History</span>
@@ -457,7 +453,7 @@ function SignalsBody() {
           }}
         >
           <AlertCircle className="h-4 w-4 flex-none mt-0.5" style={{ color: "#fda4af" }} />
-          <div className="text-[11px] leading-relaxed text-ink-muted">
+          <div className="text-caption leading-relaxed text-ink-muted">
             Couldn't reach the audit feed. {error}
           </div>
         </div>
@@ -472,10 +468,10 @@ function SignalsBody() {
               <section>
                 <div className="flex items-end justify-between mb-2 gap-2">
                   <div className="min-w-0">
-                    <h2 className="text-[13px] font-bold tracking-tight flex items-center gap-1.5">
+                    <h2 className="font-mono text-headline tracking-[0.08em] uppercase text-ink-muted flex items-center gap-1.5">
                       <LiveDot size={5} /> Open positions
                     </h2>
-                    <div className="text-[10px] text-ink-muted truncate">
+                    <div className="text-caption text-ink-muted truncate">
                       Live P&L ticks every Binance trade
                     </div>
                   </div>
@@ -484,7 +480,7 @@ function SignalsBody() {
 
                 <div className="space-y-2">
                   {openCalls.length === 0 ? (
-                    <div className="rounded-xl border border-line/60 bg-bg-card/30 p-3 text-[11px] text-ink-muted leading-relaxed">
+                    <div className="rounded-xl border border-line/60 bg-bg-card/30 p-3 text-caption text-ink-muted leading-relaxed">
                       No open positions right now. The scanner watches 47 pairs around the clock and only fires when a setup clears every filter. Most days nothing does. A quiet feed is the system being selective, not broken.
                     </div>
                   ) : (
@@ -503,10 +499,10 @@ function SignalsBody() {
               <section>
                 <div className="flex items-end justify-between mb-2 gap-2">
                   <div className="min-w-0">
-                    <h2 className="text-[13px] font-bold tracking-tight">
+                    <h2 className="font-mono text-headline tracking-[0.08em] uppercase text-ink-muted">
                       Latest closed trades
                     </h2>
-                    <div className="text-[10px] text-ink-muted truncate">
+                    <div className="text-caption text-ink-muted truncate">
                       Recent completed signals from the audit log
                     </div>
                   </div>
@@ -514,7 +510,7 @@ function SignalsBody() {
 
                 <div className="space-y-2">
                   {closedCalls.length === 0 ? (
-                    <div className="text-[11px] text-ink-subtle italic px-1">
+                    <div className="text-caption text-ink-subtle italic px-1">
                       No closed trades yet.
                     </div>
                   ) : (
@@ -534,7 +530,7 @@ function SignalsBody() {
 
               <ConnectPushNotifications />
 
-              <p className="text-[10px] text-ink-subtle leading-relaxed pt-1">
+              <p className="text-caption text-ink-subtle leading-relaxed pt-1">
                 Signal alerts are for educational use. Past performance does
                 not guarantee future results.
               </p>
@@ -562,7 +558,7 @@ function SignalsBody() {
                       : "—"
                   }
                   height={52}
-                  className="text-[48px] font-extrabold tracking-tight tabular-nums leading-none"
+                  className="font-mono text-display tabular-nums leading-none"
                   style={{
                     color:
                       !live || live.returnPct >= 0
@@ -572,7 +568,7 @@ function SignalsBody() {
                   }}
                 />
               </div>
-              <div className="text-[11px] text-ink-muted mt-1">
+              <div className="text-caption text-ink-muted mt-1">
                 {live ? (
                   <>
                     <span
@@ -620,7 +616,7 @@ function SignalsBody() {
                       {k}
                     </div>
                     <div
-                      className="tabular-nums text-[12px] font-bold mt-0.5"
+                      className="font-mono tabular-nums text-footnote mt-0.5"
                       style={{ color: c }}
                     >
                       {v}
@@ -635,10 +631,10 @@ function SignalsBody() {
           <section>
             <div className="flex items-end justify-between mb-2 gap-2">
               <div className="min-w-0">
-                <h2 className="text-[13px] font-bold tracking-tight flex items-center gap-1.5">
+                <h2 className="font-mono text-headline tracking-[0.08em] uppercase text-ink-muted flex items-center gap-1.5">
                   <LiveDot size={5} /> Live calls
                 </h2>
-                <div className="text-[10px] text-ink-muted truncate">
+                <div className="text-caption text-ink-muted truncate">
                   Last {executionCalls.length} V22 entries · upgrade for the full feed
                 </div>
               </div>
@@ -646,7 +642,7 @@ function SignalsBody() {
             </div>
             <div className="space-y-2">
               {executionCalls.length === 0 ? (
-                <div className="text-[11px] text-ink-subtle italic px-1">
+                <div className="text-caption text-ink-subtle italic px-1">
                   Scanner warming up — first V22 cycle in progress…
                 </div>
               ) : (
@@ -665,17 +661,17 @@ function SignalsBody() {
           <section className="rounded-2xl border border-line/60 bg-bg-card/30 p-4">
             <div className="flex items-end justify-between mb-3">
               <div>
-                <h2 className="text-[13px] font-bold tracking-tight">
+                <h2 className="font-mono text-headline tracking-[0.08em] uppercase text-ink-muted">
                   By the year
                 </h2>
-                <div className="text-[10px] text-ink-muted">
+                <div className="text-caption text-ink-muted">
                   Closed PnL · backtested
                   {data.backtest_through
                     ? ` through ${monthYear(data.backtest_through)}, live after`
                     : ""}
                 </div>
               </div>
-              <div className="text-[10px] text-ink-subtle tabular-nums">
+              <div className="text-caption text-ink-subtle tabular-nums">
                 {data.year_breakdown.length}y
               </div>
             </div>
@@ -690,10 +686,10 @@ function SignalsBody() {
           {/* ── Plan picker + CTA — UPSELL ONLY ── */}
           <section id="plan-picker" className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <h2 className="text-[13px] font-bold tracking-tight">
+              <h2 className="font-mono text-headline tracking-[0.08em] uppercase text-ink-muted">
                 Choose your access
               </h2>
-              <span className="text-[10px] text-ink-subtle">Cancel anytime</span>
+              <span className="text-caption text-ink-subtle">Cancel anytime</span>
             </div>
             
             {/* Billing period switcher */}
@@ -701,7 +697,7 @@ function SignalsBody() {
               <button
                 type="button"
                 onClick={() => setBilling("monthly")}
-                className={`flex-1 py-1 text-center rounded-md text-[10px] font-bold transition cursor-pointer ${
+                className={`flex-1 py-1 text-center rounded-md text-caption transition cursor-pointer ${
                   billing === "monthly"
                     ? "bg-accent/15 text-accent border border-accent/15"
                     : "text-ink-subtle hover:text-ink"
@@ -712,14 +708,14 @@ function SignalsBody() {
               <button
                 type="button"
                 onClick={() => setBilling("yearly")}
-                className={`flex-1 py-1 text-center rounded-md text-[10px] font-bold transition cursor-pointer flex items-center justify-center gap-1 ${
+                className={`flex-1 py-1 text-center rounded-md text-caption transition cursor-pointer flex items-center justify-center gap-1 ${
                   billing === "yearly"
                     ? "bg-accent/15 text-accent border border-accent/15"
                     : "text-ink-subtle hover:text-ink"
                 }`}
               >
                 Yearly
-                <span className="text-[7.5px] bg-accent/20 text-accent px-1 rounded-sm font-extrabold scale-90">
+                <span className="text-caption bg-accent/20 text-accent px-1 rounded-sm scale-90">
                   -20%
                 </span>
               </button>
@@ -751,7 +747,7 @@ function SignalsBody() {
                 <button
                   disabled={isCurrent || purchaseBusy}
                   onClick={handleCtaClick}
-                  className="w-full min-h-14 rounded-2xl px-4 py-3 font-extrabold text-[14px] flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full min-h-14 rounded-2xl px-4 py-3 font-extrabold text-body flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 active:scale-[0.99] transition disabled:opacity-60 disabled:cursor-not-allowed"
                   style={{
                     background: isCurrent ? "var(--bg-elev)" : "var(--accent)",
                     color: isCurrent ? "var(--ink-muted)" : "var(--bg)",
@@ -774,34 +770,22 @@ function SignalsBody() {
                             : `Switch to ${selectedPlan.name}`}
                   </span>
                   {!isCurrent && !isFreePlan && !purchaseBusy && (
-                    <span className="opacity-70 text-[12px]">
+                    <span className="opacity-70 text-footnote">
                       then {selectedPlan.price}
                       {selectedPlan.per}
                     </span>
                   )}
                 </button>
-                {purchaseError && (
-                  <div
-                    className="rounded-xl border px-3 py-2 text-[11px] leading-relaxed"
-                    style={{
-                      borderColor: "rgba(239,68,68,0.35)",
-                      background: "rgba(239,68,68,0.06)",
-                      color: "#fecdd3",
-                    }}
-                  >
-                    {purchaseError}
-                  </div>
-                )}
               </div>
             );
           })()}
           {/* ── Recent wins — UPSELL ONLY ── */}
             <section>
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-[13px] font-bold tracking-tight">
+                <h2 className="font-mono text-headline tracking-[0.08em] uppercase text-ink-muted">
                   Recent closed wins
                 </h2>
-                <button className="text-[10px] font-bold text-ink-muted flex items-center gap-1 hover:text-ink">
+                <button className="text-caption text-ink-muted flex items-center gap-1 hover:text-ink">
                   All <ChevronRight className="h-2.5 w-2.5" />
                 </button>
               </div>
@@ -812,7 +796,7 @@ function SignalsBody() {
               </div>
             </section>
 
-          <p className="text-[10px] text-ink-subtle leading-relaxed pt-1">
+          <p className="text-caption text-ink-subtle leading-relaxed pt-1">
             Track record computed from the V22 audit log. Past performance does
             not guarantee future results.
           </p>
