@@ -11,42 +11,44 @@ export default {
         // Hex mirrors of the CSS tokens in index.css (Tailwind v3 needs plain
         // colors for opacity modifiers like bg-card/45). Keep both in sync.
         surface: {
-          0: "#070b14",
-          1: "#0d1322",
-          2: "#131a2c",
-          3: "#1a2238",
+          0: "#0e0f12",
+          1: "#16181d",
+          2: "#1e2128",
+          3: "#282c35",
         },
         // Legacy names — alias onto the token system
         bg: {
-          DEFAULT: "#070b14",
-          card:    "#0d1322",
-          elev:    "#131a2c",
+          DEFAULT: "#0e0f12",
+          card:    "#16181d",
+          elev:    "#1e2128",
         },
         ink: {
-          DEFAULT: "#e8ecf5",
-          muted:   "#a5a9b2",   // ink-70 over surface-0
-          subtle:  "#6c7079",   // ink-45 over surface-0
-          faint:   "#3f434c",   // ink-25 over surface-0
+          DEFAULT: "#f0efec",
+          muted:   "#adaca8",   // ink-70 over surface-0
+          subtle:  "#918f8b",   // ink-45 over surface-0 — AA at 10-11px
+          faint:   "#514f4c",   // ink-25 over surface-0
         },
+        // Brass is the brand. Green/red mean money and nothing else — see the
+        // note in index.css for why these must not share a hue.
         accent: {
-          DEFAULT: "#2ee6b8",
-          pressed: "#26c9a1",
-          soft:    "rgba(46, 230, 184, 0.12)",
-          warm:    "#ffb02e",
-          danger:  "#ff5c7a",
+          DEFAULT: "#d9a83c",
+          pressed: "#c2922f",
+          soft:    "rgba(217, 168, 60, 0.14)",
+          warm:    "#d9a83c",
+          danger:  "#f2555a",
         },
-        positive: "#2ee6b8",
+        positive: "#3ecf8e",
         negative: {
-          DEFAULT: "#ff5c7a",
-          soft:    "rgba(255, 92, 122, 0.12)",
+          DEFAULT: "#f2555a",
+          soft:    "rgba(242, 85, 90, 0.14)",
         },
         warning: {
-          DEFAULT: "#ffb02e",
-          soft:    "rgba(255, 176, 46, 0.10)",
+          DEFAULT: "#d9a83c",
+          soft:    "rgba(217, 168, 60, 0.12)",
         },
         line: {
-          DEFAULT: "#1d2438",
-          strong:  "#29314d",
+          DEFAULT: "#23262e",
+          strong:  "#333845",
         },
       },
       spacing: {
@@ -61,17 +63,30 @@ export default {
       fontFamily: {
         sans: ["Inter Variable", "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "monospace"],
+        // Headings and section titles. Deliberately NOT used for numbers —
+        // DESIGN.md §1 rule 2 requires data keep one tabular face.
+        display: ["Instrument Serif", "ui-serif", "Georgia", "serif"],
       },
       // Type scale (DESIGN.md §3) — usage: text-display, text-title-1, …
+      // Measured before this change: 51 arbitrary text-[Npx] values against 2
+      // uses of the scale, 11 distinct sizes (7.5px to 48px), 76% of text at
+      // weight 700-800. Uniform emphasis is the same as none — that, not the
+      // palette, is why the UI read as characterless.
+      //
+      // The scale now carries the hierarchy so components don't have to invent
+      // it: one large moment per screen, a real gap down to body, and captions
+      // that stop shouting. Weights drop because size is doing the work.
       fontSize: {
-        display:    ["40px", { lineHeight: "44px", fontWeight: "800", letterSpacing: "-0.03em" }],
-        "title-1":  ["28px", { lineHeight: "32px", fontWeight: "800", letterSpacing: "-0.02em" }],
-        "title-2":  ["20px", { lineHeight: "24px", fontWeight: "700", letterSpacing: "-0.01em" }],
-        headline:   ["16px", { lineHeight: "22px", fontWeight: "650" }],
-        body:       ["14.5px", { lineHeight: "21px", fontWeight: "450" }],
-        footnote:   ["12.5px", { lineHeight: "17px", fontWeight: "500" }],
-        caption:    ["11px", { lineHeight: "14px", fontWeight: "600", letterSpacing: "0.06em" }],
-        stat:       ["22px", { lineHeight: "26px", fontWeight: "750", letterSpacing: "-0.01em" }],
+        display:    ["52px", { lineHeight: "52px", fontWeight: "500", letterSpacing: "-0.035em" }],
+        "title-1":  ["30px", { lineHeight: "34px", fontWeight: "400", letterSpacing: "-0.015em" }],
+        "title-2":  ["21px", { lineHeight: "26px", fontWeight: "400", letterSpacing: "-0.01em" }],
+        headline:   ["16px", { lineHeight: "22px", fontWeight: "600" }],
+        body:       ["14.5px", { lineHeight: "21px", fontWeight: "440" }],
+        footnote:   ["12.5px", { lineHeight: "17px", fontWeight: "440" }],
+        // 11px floor. Anything below was failing AA and is unreadable on a
+        // phone; the app previously went down to 7.5px.
+        caption:    ["11px", { lineHeight: "14px", fontWeight: "520", letterSpacing: "0.05em" }],
+        stat:       ["22px", { lineHeight: "26px", fontWeight: "500", letterSpacing: "-0.01em" }],
       },
       transitionTimingFunction: {
         "out-quart": "cubic-bezier(0.25, 1, 0.5, 1)",

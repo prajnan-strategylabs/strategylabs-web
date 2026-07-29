@@ -204,6 +204,30 @@
 
 ---
 
+## ADR-011: R2-backed Capacitor live updates
+
+**Date:** 2026-07-30
+**Status:** Accepted
+
+**Context:** Installed mobile apps need JavaScript-only fixes without waiting for
+store review. The API runs on Fly, whose local filesystem is not durable across
+deploys.
+
+**Decision:** Use `@capawesome/capacitor-live-update` (Capacitor 8 line).
+Versioned ZIP bundles are stored durably in Cloudflare R2 and published via a
+deploy-secret-protected FastAPI endpoint. Apps check a no-store manifest during
+the custom splash screen and continue with the installed bundle if anything
+fails.
+
+**Trade-offs:**
+- ✅ Updates survive Fly deploys and can be rolled forward quickly
+- ✅ Immutable bundle URLs avoid stale CDN caches
+- ✅ A failed update check never blocks app startup
+- ❌ Native/plugin changes still require an App Store or Play Store release
+- ❌ R2 public delivery and deploy-secret rotation must be managed operationally
+
+---
+
 ## Template for new ADRs
 
 ```markdown

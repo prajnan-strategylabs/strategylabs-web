@@ -6,31 +6,45 @@
    Design tokens — single source of truth (see DESIGN.md §2)
    ════════════════════════════════════════════════════════════════════ */
 :root {
-  /* Surfaces — elevation ladder */
-  --surface-0: #070b14;
-  --surface-1: #0d1322;
-  --surface-2: #131a2c;
-  --surface-3: #1a2238;
+  /* ── Surfaces — warm graphite, not navy ───────────────────────────────────
+     The old ladder was blue-black (#070b14). Navy + mint is the default
+     AI/fintech palette; graphite reads as instrument and lets the brass accent
+     sit warm against it. */
+  --surface-0: #0e0f12;
+  --surface-1: #16181d;
+  --surface-2: #1e2128;
+  --surface-3: #282c35;
 
-  /* Ink — one base color, alpha ladder */
-  --ink-100: rgba(232, 236, 245, 1);
-  --ink-70:  rgba(232, 236, 245, 0.7);
-  --ink-45:  rgba(232, 236, 245, 0.45);
-  --ink-25:  rgba(232, 236, 245, 0.25);
+  /* Ink — warm chalk over graphite, so text doesn't read cold-blue.
+     ink-45 was 4.09:1 on surface-0, under the 4.5 AA floor while carrying
+     every 10-11px micro-label in the app. Raised to clear AA. */
+  --ink-100: rgba(240, 239, 236, 1);
+  --ink-70:  rgba(240, 239, 236, 0.72);
+  --ink-45:  rgba(240, 239, 236, 0.58);
+  --ink-25:  rgba(240, 239, 236, 0.30);
 
   /* Hairlines */
-  --line:        #1d2438;
-  --line-strong: #29314d;
+  --line:        #23262e;
+  --line-strong: #333845;
 
-  /* Brand & semantic */
-  --accent:         #2ee6b8;
-  --accent-pressed: #26c9a1;
-  --accent-soft:    rgba(46, 230, 184, 0.12);
-  --positive:       #2ee6b8;
-  --negative:       #ff5c7a;
-  --negative-soft:  rgba(255, 92, 122, 0.12);
-  --warning:        #ffb02e;
-  --warning-soft:   rgba(255, 176, 46, 0.1);
+  /* ── Brand vs semantic — these must never be the same hue ────────────────
+     Previously --accent and --positive were both #2ee6b8, so brand, every CTA,
+     every active state and every profitable number shared one colour. That
+     makes "one accent moment per screen" (DESIGN.md §1) unachievable: the
+     accent is already spent on data before a screen renders.
+
+     Brass is the brand. Green and red mean money, and nothing else. */
+  --accent:         #d9a83c;
+  --accent-pressed: #c2922f;
+  --accent-soft:    rgba(217, 168, 60, 0.14);
+  --positive:       #3ecf8e;
+  --positive-soft:  rgba(62, 207, 142, 0.14);
+  --negative:       #f2555a;
+  --negative-soft:  rgba(242, 85, 90, 0.14);
+  /* Warning deliberately shares brass: warnings are rare, so the overlap costs
+     far less than the brand/P&L collision it replaces. */
+  --warning:        #d9a83c;
+  --warning-soft:   rgba(217, 168, 60, 0.12);
 
   /* Radius */
   --r-sm: 10px;
@@ -61,7 +75,7 @@
   body {
     @apply min-h-screen antialiased font-sans;
     background:
-      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(46, 230, 184, 0.07), transparent 60%),
+      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(217, 168, 60, 0.05), transparent 60%),
       var(--surface-0);
     font-feature-settings: "cv11", "ss01";
   }
@@ -192,12 +206,21 @@
 /* ── Native App Shell UX Enhancements ── */
 html.is-native,
 body.is-native {
+  background: var(--surface-0);
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none !important;
   overscroll-behavior-y: none !important;
   overscroll-behavior-x: none !important;
+}
+
+/* The native shell owns the one vertically scrolling surface. This preserves
+   momentum scrolling while stopping browser-style overscroll from leaking into
+   the app frame. */
+.native-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
 }
 
 /* Allow text inputs and designated content blocks to be selectable */

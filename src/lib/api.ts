@@ -5,8 +5,12 @@
 
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 
+// OTA bundles are sometimes built from a clean Git worktree, where `.env.local`
+// is intentionally absent. Never let a production native app fall back to its
+// own localhost in that case — it would make login and every API call fail.
 export const API_BASE =
-  (import.meta.env.VITE_API_URL as string | undefined) || "http://localhost:8080";
+  (import.meta.env.VITE_API_URL as string | undefined) ||
+  (import.meta.env.PROD ? "https://strategylabs-api.fly.dev" : "http://localhost:8080");
 
 export async function customFetch(
   url: string,

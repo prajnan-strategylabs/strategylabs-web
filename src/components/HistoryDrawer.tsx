@@ -279,20 +279,7 @@ export function HistoryDrawer({
           />
 
           {/* Strategy + Direction + Outcome — compact stacked rows */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <ChipRow
-              label="Strategy"
-              value={filters.strategy}
-              dense
-              options={[
-                { value: "all", label: "All" },
-                { value: "S3", label: "S3" },
-                { value: "S5", label: "S5" },
-              ]}
-              onChange={(v) =>
-                setFilters({ ...filters, strategy: v as StrategyFilter })
-              }
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <ChipRow
               label="Dir"
               value={filters.direction}
@@ -586,11 +573,6 @@ function TradeRow({
             )}{" "}
             {call.dir}
           </Pill>
-          {call.strategy && (
-            <span className="text-[9px] font-mono font-bold text-ink-subtle">
-              {call.strategy}
-            </span>
-          )}
         </div>
         <div className="text-[10px] text-ink-subtle font-mono mt-0.5">
           {call.entry_time?.slice(0, 10)} · {formatWhenAgo(call.entry_time) || call.when_ago}

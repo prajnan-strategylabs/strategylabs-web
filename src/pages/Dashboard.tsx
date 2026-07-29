@@ -251,7 +251,7 @@ function DashboardHome({
             {dayName} · {timeStr}
           </div>
           <h1 className="text-title-1 mt-1">
-            Hey, {greet}.
+            Hello, {greet}.
           </h1>
           <div className="text-footnote text-ink-muted mt-1 flex items-center gap-1.5">
             <LiveDot /> {activeCount} live · {limit === 9999 ? "∞" : limit} max on{" "}

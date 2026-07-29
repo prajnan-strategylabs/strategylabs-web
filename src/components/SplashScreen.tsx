@@ -1,28 +1,89 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { LiveUpdate } from "@capawesome/capacitor-live-update";
 import { SplashScreen as CapSplashScreen } from "@capacitor/splash-screen";
+import { API_BASE } from "../lib/api";
+
+type OtaState = "idle" | "downloading" | "updated";
+
+type UpdateManifest = {
+  bundleId: string;
+  url: string;
+};
 
 export function SplashScreen() {
   const [visible, setVisible] = useState(true);
   const [mounted, setMounted] = useState(true);
+  const [otaDone, setOtaDone] = useState(false);
+  const [otaState, setOtaState] = useState<OtaState>("idle");
+  const hasCheckedForUpdate = useRef(false);
 
   useEffect(() => {
     // Hide the native launch splash screen immediately since our custom React animation is now ready and rendering.
     CapSplashScreen.hide().catch(() => {});
 
-    // Start fading out after 2.2 seconds (allowing logo animation to complete)
-    const fadeTimer = setTimeout(() => {
-      setVisible(false);
-    }, 2200);
+    let cancelled = false;
+    let willReload = false;
 
-    // Unmount from the DOM after the fade-out transition completes (700ms transition)
-    const unmountTimer = setTimeout(() => {
-      setMounted(false);
-    }, 2900);
-
-    return () => {
-      clearTimeout(fadeTimer);
-      clearTimeout(unmountTimer);
+    const finishSplash = () => {
+      if (cancelled || willReload) return;
+      setOtaDone(true);
+      window.setTimeout(() => !cancelled && setVisible(false), 2200);
+      window.setTimeout(() => !cancelled && setMounted(false), 2900);
     };
+
+    const checkForUpdate = async () => {
+      if (hasCheckedForUpdate.current) return;
+      hasCheckedForUpdate.current = true;
+
+      try {
+        if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable("LiveUpdate")) return;
+
+        // Mark the active bundle healthy before network I/O. The plugin rolls
+        // back a newly activated bundle if ready() is not called in time.
+        await LiveUpdate.ready();
+
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 6000);
+        let response: Response;
+        try {
+          response = await window.fetch(`${API_BASE}/api/v1/updates/latest`, {
+            signal: controller.signal,
+            cache: "no-store",
+          });
+        } finally {
+          window.clearTimeout(timeout);
+        }
+        if (response.status === 404) return; // No OTA has been published yet.
+        if (!response.ok) throw new Error(`Manifest fetch failed: ${response.status}`);
+
+        const manifest = await response.json() as UpdateManifest;
+        if (!manifest.bundleId || !manifest.url) throw new Error("Malformed update manifest");
+
+        const current = await LiveUpdate.getCurrentBundle();
+        if (current?.bundleId === manifest.bundleId) return;
+
+        setOtaState("downloading");
+        try {
+          await LiveUpdate.downloadBundle({ url: manifest.url, bundleId: manifest.bundleId });
+        } catch (error) {
+          // A previous interrupted boot may already have downloaded this exact bundle.
+          if (!(error instanceof Error) || !error.message.includes("bundle already exists")) throw error;
+        }
+        await LiveUpdate.setNextBundle({ bundleId: manifest.bundleId });
+        setOtaState("updated");
+        willReload = true;
+        await new Promise((resolve) => window.setTimeout(resolve, 900));
+        await LiveUpdate.reload();
+      } catch (error) {
+        console.warn("[LiveUpdate] Update check failed; continuing with current bundle.", error);
+      } finally {
+        finishSplash();
+      }
+    };
+
+    checkForUpdate();
+    return () => { cancelled = true; };
   }, []);
 
   if (!mounted) return null;
@@ -186,6 +247,12 @@ export function SplashScreen() {
             AI Quantitative Simulator
           </p>
         </div>
+      </div>
+
+      <div className="absolute bottom-12 h-5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-subtle">
+        {otaState === "downloading" && "Updating app…"}
+        {otaState === "updated" && "Restarting…"}
+        {otaState === "idle" && !otaDone && "Loading…"}
       </div>
     </div>
   );
