@@ -8,6 +8,29 @@ import { RevenueCatUI } from "@revenuecat/purchases-capacitor-ui";
 import { toast } from "./toast";
 
 const REVENUECAT_API_KEY = import.meta.env.VITE_REVENUECAT_API_KEY || "";
+
+/**
+ * True once Purchases.configure() has succeeded this session. Every other
+ * exported function here must gate on isUsable() before touching the native
+ * Purchases/RevenueCatUI SDK.
+ *
+ * On Android, calling ANY RevenueCat native method (getCustomerInfo,
+ * getOfferings, purchasePackage, ...) before configure() has succeeded throws
+ * a synchronous, uncaught exception on the Capacitor plugin bridge thread
+ * (`FATAL EXCEPTION: CapacitorPlugins`) that crashes the entire app process --
+ * this is exactly what happened when VITE_REVENUECAT_API_KEY was blank:
+ * configure() itself threw "API key must be set" natively, and a JS
+ * try/catch around `await Purchases.configure(...)` could not catch it,
+ * because the process died before the native call ever returned control to
+ * reject the promise. Gating every downstream call on this flag is the only
+ * way an unconfigured SDK stays inert instead of taking the app down the
+ * moment anything else tries to use it.
+ */
+let isConfigured = false;
+
+function isUsable(): boolean {
+  return Capacitor.isNativePlatform() && isConfigured;
+}
 const TRADER_ENTITLEMENT_IDS = [
   "StrategyLabs Trader",
   "Trader",
@@ -157,11 +180,19 @@ export async function configurePurchases(userId: string): Promise<void> {
     return;
   }
 
+  if (!REVENUECAT_API_KEY) {
+    // Must not reach Purchases.configure() -- see the isUsable() docstring
+    // above for why an empty key here is fatal, not just a failed call.
+    console.warn("[RevenueCat] VITE_REVENUECAT_API_KEY is not set. Skipping SDK configuration; purchases are unavailable this session.");
+    return;
+  }
+
   try {
     await Purchases.configure({
       apiKey: REVENUECAT_API_KEY,
       appUserID: userId,
     });
+    isConfigured = true;
     console.log("[RevenueCat] SDK initialized successfully for user:", userId);
   } catch (error) {
     console.error("[RevenueCat] Failed to configure Purchases SDK:", error);
@@ -172,8 +203,8 @@ export async function configurePurchases(userId: string): Promise<void> {
  * Check if the user currently holds the active entitlement "StrategyLabs Auto".
  */
 export async function checkAutoEntitlement(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) {
-    console.warn("[RevenueCat] Web sandbox bypass. Assuming free tier on web.");
+  if (!isUsable()) {
+    console.warn("[RevenueCat] Not configured or not native. Assuming free tier.");
     return false;
   }
 
@@ -192,7 +223,7 @@ export async function checkAutoEntitlement(): Promise<boolean> {
  * Check if the user currently holds the active entitlement "StrategyLabs Trader".
  */
 export async function checkTraderEntitlement(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isUsable()) {
     return false;
   }
 
@@ -211,7 +242,7 @@ export async function checkTraderEntitlement(): Promise<boolean> {
  * Determine the highest active subscription tier for the user based on active entitlements.
  */
 export async function determineActiveTier(): Promise<"auto" | "trader" | "free"> {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isUsable()) {
     return "free";
   }
 
@@ -228,7 +259,7 @@ export async function determineActiveTier(): Promise<"auto" | "trader" | "free">
  * Fetch the latest CustomerInfo object from RevenueCat.
  */
 export async function getCustomerInfo(): Promise<CustomerInfo | null> {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isUsable()) {
     return null;
   }
 
@@ -246,7 +277,7 @@ export async function getCustomerInfo(): Promise<CustomerInfo | null> {
  * Returns true if a purchase was completed, false otherwise.
  */
 export async function presentPaywall(offeringId?: string): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isUsable()) {
     toast("In-app purchases are only available in the mobile app. Please purchase on our web platform.", "info");
     return false;
   }
@@ -282,7 +313,7 @@ export async function purchaseSubscriptionPackage(
   planId: string,
   billingPeriod: "monthly" | "yearly" = "monthly"
 ): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isUsable()) {
     toast("In-app purchases are only available in the mobile app. Please purchase on our web platform.", "info");
     return false;
   }
@@ -334,7 +365,7 @@ export async function purchaseSubscriptionPackage(
  * Present the RevenueCat Paywall UI ONLY if the user does not already have an active subscription.
  */
 export async function presentPaywallIfNeeded(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isUsable()) {
     return false;
   }
 
@@ -360,7 +391,7 @@ export async function presentPaywallIfNeeded(): Promise<boolean> {
  * request refunds, or cancel/upgrade.
  */
 export async function presentCustomerCenter(): Promise<void> {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isUsable()) {
     toast("Subscription management is only available inside the mobile app.", "info");
     return;
   }
@@ -384,7 +415,7 @@ export async function getSubscriptionOfferings(): Promise<RCProductOfferings> {
     rawOfferings: null,
   };
 
-  if (!Capacitor.isNativePlatform()) {
+  if (!isUsable()) {
     return result;
   }
 
@@ -407,7 +438,7 @@ export async function getSubscriptionOfferings(): Promise<RCProductOfferings> {
  * Restore previously purchased transactions (e.g. if the user reinstalls the app).
  */
 export async function restorePurchases(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isUsable()) {
     return false;
   }
 
@@ -428,7 +459,7 @@ export async function restorePurchases(): Promise<boolean> {
  * This is useful to sync UI states immediately when a transaction completes.
  */
 export function addSubscriptionListener(onUpdate: (customerInfo: CustomerInfo) => void): (() => void) | null {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isUsable()) {
     return null;
   }
 
