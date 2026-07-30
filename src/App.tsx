@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { AppLayout } from "./components/AppLayout";
@@ -8,6 +8,7 @@ import { SplashScreen } from "./components/SplashScreen";
 import { BackButtonHandler } from "./components/BackButtonHandler";
 import { Toaster } from "./components/Toaster";
 import { AnalyticsTracker } from "./components/AnalyticsTracker";
+import { markBootReady } from "./lib/ota-boot-guard";
 
 const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
 const StrategyLab = lazy(() => import("./pages/StrategyLab").then((m) => ({ default: m.StrategyLab })));
@@ -34,6 +35,14 @@ function RouteFallback() {
 }
 
 function App() {
+  // Effects only run once this component's own render has actually committed
+  // — the one BootErrorBoundary/ota-boot-guard signal that genuinely means
+  // "the real app mounted," as opposed to the boundary's own componentDidMount,
+  // which fires even when it's showing its error fallback instead of us.
+  useEffect(() => {
+    markBootReady();
+  }, []);
+
   return (
     <AuthProvider>
       <SplashScreen />

@@ -10,15 +10,22 @@ import '@fontsource/instrument-serif/400.css'
 import './index.css'
 import App from './App.tsx'
 import { initNative } from './lib/native-init'
+import { installBootGuard, guardInitialRender } from './lib/ota-boot-guard'
+import { BootErrorBoundary } from './components/BootErrorBoundary'
 
 if (Capacitor.isNativePlatform()) {
   document.documentElement.classList.add('is-native')
   document.body.classList.add('is-native')
 }
 initNative()
+installBootGuard()
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+guardInitialRender(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <BootErrorBoundary>
+        <App />
+      </BootErrorBoundary>
+    </StrictMode>,
+  )
+})

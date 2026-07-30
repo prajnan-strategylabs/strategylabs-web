@@ -5,6 +5,18 @@ const config: CapacitorConfig = {
   appName: 'StrategyLabs',
   webDir: 'dist',
   plugins: {
+    // readyTimeout defaults to 0 (disabled) if unset. SplashScreen.tsx's OTA
+    // logic calls LiveUpdate.ready() to mark a freshly-activated bundle
+    // healthy, assuming the plugin will roll back to the embedded bundle if
+    // ready() is never reached in time -- but that safety net does not exist
+    // unless a nonzero readyTimeout is configured here. Without it, a bundle
+    // that fails before React mounts (a thrown error, a bad build) crash-loops
+    // forever with no self-healing. This is a native-level setting: it takes
+    // effect on the next real app-store / APK build, not via OTA.
+    LiveUpdate: {
+      readyTimeout: 10000,
+      autoBlockRolledBackBundles: true
+    },
     SplashScreen: {
       launchShowDuration: 3000,
       launchAutoHide: false,
