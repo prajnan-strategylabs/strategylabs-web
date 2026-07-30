@@ -12,6 +12,7 @@ export function StatTile({
   tone = "default",
   info,
   loading = false,
+  className = "",
 }: {
   label: string;
   value: ReactNode;
@@ -19,6 +20,7 @@ export function StatTile({
   tone?: "default" | "positive" | "negative" | "accent";
   info?: string;
   loading?: boolean;
+  className?: string;
 }) {
   const [flipped, setFlipped] = useState(false);
   const valueColor =
@@ -32,7 +34,7 @@ export function StatTile({
     <div
       className={`rounded-md2 border border-line bg-surface-1 p-4 ${
         info ? "cursor-pointer" : ""
-      }`}
+      } ${className}`}
       onClick={
         info
           ? () => {
