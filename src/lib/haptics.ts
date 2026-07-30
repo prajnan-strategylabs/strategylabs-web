@@ -1,17 +1,20 @@
 import { Capacitor } from "@capacitor/core";
-import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
+import { Haptics } from "@capacitor/haptics";
 
 const isNative = Capacitor.isNativePlatform();
 
-function safely(action: () => Promise<void>) {
+function safely(action: () => Promise<unknown>) {
   if (!isNative) return;
   action().catch(() => {});
 }
 
 export function hapticLight() {
-  safely(() => Haptics.impact({ style: ImpactStyle.Light }));
+  // Match the Android shell: a short, deliberately timed physical tap.
+  safely(() => Haptics.vibrate({ duration: 15 }));
 }
 
 export function hapticSuccess() {
-  safely(() => Haptics.notification({ type: NotificationType.Success }));
+  // Success gets a slightly longer confirmation without falling back to a
+  // platform-defined impact/notification pattern.
+  safely(() => Haptics.vibrate({ duration: 25 }));
 }
