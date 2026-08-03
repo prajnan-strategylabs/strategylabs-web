@@ -430,16 +430,19 @@ function SignalsBody() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-none">
-          {isPaid && (
-            <button
-              onClick={() => setHistoryOpen(true)}
-              aria-label="View history"
-              className="h-9 px-3 rounded-lg border border-line/60 bg-bg-card/40 flex items-center gap-1.5 text-caption text-ink-muted hover:text-ink hover:border-line active:scale-95 transition"
-            >
-              <History className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">History</span>
-            </button>
-          )}
+          {/* Closed history is free-tier-visible by design — the backend
+              pool behind this drawer is closed trades only (v22_signals
+              status='closed'), so there's nothing here that needs masking
+              the way open positions' live entry/SL/TP do. Only realtime
+              open-position streaming and Telegram/alerts are the paid gate. */}
+          <button
+            onClick={() => setHistoryOpen(true)}
+            aria-label="View history"
+            className="h-9 px-3 rounded-lg border border-line/60 bg-bg-card/40 flex items-center gap-1.5 text-caption text-ink-muted hover:text-ink hover:border-line active:scale-95 transition"
+          >
+            <History className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">History</span>
+          </button>
           <Pill tone="accent">{isPaid ? tierLabel : "audited"}</Pill>
         </div>
       </header>
