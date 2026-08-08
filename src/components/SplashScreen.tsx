@@ -14,7 +14,6 @@ type UpdateManifest = {
 export function SplashScreen() {
   const [visible, setVisible] = useState(true);
   const [mounted, setMounted] = useState(true);
-  const [otaDone, setOtaDone] = useState(false);
   const [otaState, setOtaState] = useState<OtaState>("idle");
   const hasCheckedForUpdate = useRef(false);
 
@@ -27,7 +26,6 @@ export function SplashScreen() {
 
     const finishSplash = () => {
       if (cancelled || willReload) return;
-      setOtaDone(true);
       window.setTimeout(() => !cancelled && setVisible(false), 2200);
       window.setTimeout(() => !cancelled && setMounted(false), 2900);
     };
@@ -249,10 +247,20 @@ export function SplashScreen() {
         </div>
       </div>
 
-      <div className="absolute bottom-12 h-5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-subtle">
-        {otaState === "downloading" && "Updating app…"}
-        {otaState === "updated" && "Restarting…"}
-        {otaState === "idle" && !otaDone && "Loading…"}
+      {/* Only announce the two states worth announcing — "downloading" a real
+          OTA bundle, "updated" about to restart. The idle background check
+          resolves on nearly every launch with nothing to report, so it stays
+          silent instead of flashing "Loading…" every single time the app
+          opens. key={otaState} remounts the span on each real transition,
+          retriggering the existing page-enter fade/rise (see .animate-enter
+          in index.css) instead of the text hard-swapping with no animation. */}
+      <div className="absolute bottom-12 h-5 flex items-center justify-center">
+        {otaState !== "idle" && (
+          <span key={otaState} className="text-caption uppercase text-ink-subtle animate-enter">
+            {otaState === "downloading" && "Updating app…"}
+            {otaState === "updated" && "Restarting…"}
+          </span>
+        )}
       </div>
     </div>
   );
